@@ -138,6 +138,7 @@ fn fragment_main(data: FragmentData) -> @location(0) vec4<f32> {
             1, -1, -1, 1, 1, 0, 0, 1,
             -1, 1, -1, 1, 0, 1, 0, 1,
         ]);
+        
         for (let index = 0; index < 36*8; index+=8) {
             verticesArray[index]  -=1.2;
 
@@ -148,8 +149,8 @@ fn fragment_main(data: FragmentData) -> @location(0) vec4<f32> {
             verticesArray[index+2]  += 0.1;
 
         }
-
         const indicesArray = new Uint16Array(72);
+        console.log(indicesArray)
         for (let index = 0; index < 72; index++) {
             indicesArray[index] = (index%36);
 
@@ -423,6 +424,7 @@ fn fragment_main(data: FragmentData) -> @location(0) vec4<f32> {
             cubeDraw[2] = 0;
             cubeDraw[3] = 0;
             cubeDraw[4] = 0;
+            console.log(cubeDraw.byteLength)
             let cubeBuffer = device.createBuffer({
                 size: cubeDraw.byteLength,
                 usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST
