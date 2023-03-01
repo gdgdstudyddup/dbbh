@@ -1,4 +1,4 @@
-import { shader_string } from "../shader/simple_test";
+import { shader_string } from "../shader/simple_test.js";
 // depth stencil alpha pipeline_layout shader_content
 class PipelineDescriptor {
     constructor(parameter) {

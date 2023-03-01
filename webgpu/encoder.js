@@ -33,7 +33,7 @@ export class Encoder {
         this.passEncoder.setVertexBuffer(slot, buffer, offset);
     }
 
-    set_index_buffer(buffer, indexFormat, offset) {
+    set_index_buffer(buffer, indexFormat, offset = 0) {
         this.passEncoder.setIndexBuffer(buffer, indexFormat, offset);
     }
 
