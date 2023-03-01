@@ -4,6 +4,8 @@ import { PerspectiveCamera } from "../camera/camera.js";
 import { BindGroup } from "../webgpu/bind-group.js";
 import { pipeline_factor } from "../webgpu/pipeline.js";
 import { texture_factor } from "../webgpu/texture.js";
+import { pass_factor } from "../webgpu/renderpass.js";
+import { Encoder } from "../webgpu/encoder.js";
 
 export class ContextConfig {
     constructor(format, alphaMode) {
@@ -47,8 +49,10 @@ class DEngine {
         const context = canvas.getContext('webgpu');
         const base_context_configuration = new ContextConfig('bgra8unorm', 'opaque');
         const gpu = new WebGPU(canvas, context, adapter, device, static_bind_group, base_context_configuration);
-        gpu.set_pipeline_factor(pipeline_factor());
-        gpu.set_pipeline_factor(texture_factor());
+        gpu.set_pipeline_factor(pipeline_factor(device));
+        gpu.set_pipeline_factor(texture_factor(device));
+        gpu.set_pass_factor(pass_factor(device));
+        gpu.set_encoder(new Encoder(device));
         this.cluster_renderer = new ClusterRenderer({ gpu });
         if (this.firstFrame) {
             this.cluster_renderer.render(this.main_camera);

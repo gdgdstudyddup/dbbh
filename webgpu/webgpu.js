@@ -15,6 +15,17 @@ export class WebGPU {
 
         });
     }
+    create_view(){
+        this.pass_factor.resource.colorAttachments[0].view = this.context.getCurrentTexture().createView();
+    }
+    set_encoder(encoder) {
+        this.encoder = encoder;
+    }
+
+    set_pass_factor(factor) {
+        this.pass_factor = factor;
+    }
+
     set_pipeline_factor(factor) {
         this.pipeline_factor = factor;
     }

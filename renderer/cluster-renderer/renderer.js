@@ -10,6 +10,10 @@ export class ClusterRenderer {
             layout: default_layout
         });
         this.render_pipeline = gpu.pipeline_factor.create_render_pipeline(default_render_descriptor);
+        this.pass = gpu.pass_factor.create_descriptor({
+            colorAttachments: [new ColorAttachment()],
+            depthStencilAttachment: new DepthStencilAttachment()
+        })
     }
 
     update_camera_and_get_vp(camera) {
@@ -29,6 +33,9 @@ export class ClusterRenderer {
         // pure data
         const data = data_flow_center.get_data();
 
+        gpu.encoder.create();
+        gpu.create_view();
+        // gpu.encoder.begin_render_pass()
         {// const commandEncoder = gpu.device.createCommandEncoder();
             // renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
             // const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
@@ -40,7 +47,7 @@ export class ClusterRenderer {
             // passEncoder.setVertexBuffer(0, data.position);
             // passEncoder.setIndexBuffer(data.index, 'uint16');
             // // Bind groups
-            // passEncoder.setBindGroup(0, gpu.static_bind_group.bind_group);
+            // passEncoder.setBindGroup(0, gpu.static_bind_group.resource);
         }
         let testDraw = new Uint32Array(5);
         testDraw[0] = data.index.length;

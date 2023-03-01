@@ -15,6 +15,6 @@ export class BindGroup {
             entries: [buffer_bind_group_entry]
         };
         this.bind_buffer = buffer;
-        this.bind_group = device.createBindGroup(bind_group_descriptor);
+        this.resource = device.createBindGroup(bind_group_descriptor);
     }
 }
