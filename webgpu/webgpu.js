@@ -15,6 +15,11 @@ export class WebGPU {
 
         });
     }
-    drawStatic() {
+    set_pipeline_factor(factor) {
+        this.pipeline_factor = factor;
+    }
+
+    set_texture_factor(factor) {
+        this.texture_factor = factor;
     }
 }

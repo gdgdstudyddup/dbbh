@@ -252,7 +252,7 @@ fn fragment_main(data: FragmentData) -> @location(0) vec4<f32> {
             };
 
             const colorTargetState = {
-                format: canvasFormat,
+                format: "bgra8unorm",
                 blend: {
                     alpha: {
                         srcFactor: "src-alpha",

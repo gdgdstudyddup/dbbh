@@ -1,9 +1,5 @@
 export class BindGroup {
     constructor(device, { buffer_descriptor, bind_group_layout, offset, size, binding }) {
-        // const buffer_descriptor = {
-        //     size: size,
-        //     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        // };
         const buffer = device.createBuffer(buffer_descriptor);
         const buffer_resource = {
             buffer: buffer,
