@@ -14,7 +14,7 @@ export class ContextConfig {
     }
 }
 class DEngine {
-    stop = true;
+    stop = false;
     firstFrame = true;
     constructor() { // we just run and change some config later maybe its ok
         this.init_and_run();

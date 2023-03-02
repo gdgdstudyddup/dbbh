@@ -33,11 +33,19 @@ export class ClusterRenderer {
     update_camera_and_get_vp(camera) {
         const gpu = this.gpu;
         camera.update();
-        const viewProjectionMatrix = mat4.create();
+        // const viewProjectionMatrix = mat4.create();
+        // const viewMatrix = mat4.create();
+        // mat4.invert(viewMatrix, camera.matrixWorldElements);
+        // mat4.multiply(viewProjectionMatrix, camera.projectionMatrixElements, viewMatrix);
+        // gpu.device.queue.writeBuffer(gpu.static_bind_group.bind_buffer, 0, viewProjectionMatrix);
+        
         const viewMatrix = mat4.create();
-        mat4.invert(viewMatrix, camera.matrixWorldElements);
-        mat4.multiply(viewProjectionMatrix, camera.projectionMatrixElements, viewMatrix);
-        gpu.device.queue.writeBuffer(gpu.static_bind_group.bind_buffer, 0, viewProjectionMatrix);
+        mat4.translate(viewMatrix, viewMatrix, vec3.fromValues(0, 0, -5));
+        const now = Date.now() / 1000;
+        mat4.rotate(viewMatrix, viewMatrix, 1, vec3.fromValues(Math.sin(now), Math.cos(now), 0));
+        const modelViewProjectionMatrix = mat4.create();
+        mat4.multiply(modelViewProjectionMatrix,  camera.projectionMatrixElements, viewMatrix);
+        gpu.device.queue.writeBuffer(gpu.static_bind_group.bind_buffer, 0, modelViewProjectionMatrix);
         // return viewProjectionMatrix;
     }
 
@@ -55,7 +63,7 @@ export class ClusterRenderer {
         gpu.encoder.set_index_buffer(data.index, 'uint16');
         gpu.encoder.set_bind_group(0, gpu.static_bind_group);
         let indirect_struct = new Uint32Array(5);
-        indirect_struct[0] = data.index.length;
+        indirect_struct[0] = 36;
         indirect_struct[1] = 1;
         indirect_struct[2] = 0;
         indirect_struct[3] = 0;
