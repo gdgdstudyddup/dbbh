@@ -11,11 +11,11 @@ export class Encoder {
         this.device.queue.submit([this.commandEncoder.finish()]);
     }
 
-    begin_render_pass(descriptor) {
-        this.passEncoder = commandEncoder.beginRenderPass(descriptor.resource);
+    begin_render_pass(pass_descriptor) {
+        this.passEncoder = this.commandEncoder.beginRenderPass(pass_descriptor);
     }
-    begin_compute_pass(descriptor){
-        this.passEncoder = commandEncoder.beginComputePass(descriptor.resource);
+    begin_compute_pass(pass_descriptor){
+        this.passEncoder = this.commandEncoder.beginComputePass(pass_descriptor);
     }
     end_pass() {
         this.passEncoder.end();

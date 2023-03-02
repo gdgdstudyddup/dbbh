@@ -18,7 +18,7 @@ export class ClusterRenderer {
                 storeOp: "store",
             }],
             depthStencilAttachment: {
-                view: gpu.depthTexture.createView(),
+                view: gpu.depth_texture.createView(),
                 depthClearValue: 1.0,
                 depthLoadOp: "clear",
                 depthStoreOp: "store",
@@ -26,7 +26,8 @@ export class ClusterRenderer {
                 stencilLoadOp: "load",
                 stencilStoreOp: "store",
             }
-        })
+        });
+        this.data = data_flow_center.get_data(gpu);;
     }
 
     update_camera_and_get_vp(camera) {
@@ -44,15 +45,15 @@ export class ClusterRenderer {
         const gpu = this.gpu;
         this.update_camera_and_get_vp(camera);
         // pure data
-        const data = data_flow_center.get_data();
+        const data = this.data;
 
         gpu.encoder.create(); // const commandEncoder = gpu.device.createCommandEncoder();
-        gpu.create_view(); // renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
+        gpu.create_view(this.pass); // renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView();
         gpu.encoder.begin_render_pass(this.pass); // const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
         gpu.encoder.set_pipeline(this.render_pipeline); // passEncoder.setPipeline(renderPipeline);
         gpu.encoder.set_vertex_buffer(0, data.position);
         gpu.encoder.set_index_buffer(data.index, 'uint16');
-        gpu.encoder.set_bind_group(0, gpu.static_bind_group.resource);
+        gpu.encoder.set_bind_group(0, gpu.static_bind_group);
         let indirect_struct = new Uint32Array(5);
         indirect_struct[0] = data.index.length;
         indirect_struct[1] = 1;

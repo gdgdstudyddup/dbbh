@@ -10,7 +10,7 @@ class PipelineDescriptor {
             depthCompare: "less"
         };
         this.vertex = {
-            vertex_buffer_state: parameter.vertex_buffer_state || {
+            buffers: parameter.vertex_buffer_states || [{
                 arrayStride: 4 * 4, // x y z w byte==char float = 4char 4float=4*4
                 stepMode: "vertex",
                 attributes: [{
@@ -18,10 +18,10 @@ class PipelineDescriptor {
                     offset: 0,
                     shaderLocation: 0,  // @attribute(0)
                 }]
-            }
+            }]
         };
         this.fragment = {
-            targets: parameter.color_target_state || {
+            targets: parameter.color_target_states || [{
                 format: "bgra8unorm",
                 blend: {
                     alpha: {
@@ -36,7 +36,7 @@ class PipelineDescriptor {
                     },
                 },
                 writeMask: GPUColorWrite.ALL,
-            }
+            }]
         }
     }
 }
@@ -53,7 +53,7 @@ class RenderPipeline extends PipeLine {
         this.resource = device.createRenderPipeline({
             layout: descriptor.layout,
             vertex: {
-                buffers: descriptor.vertex.vertex_buffer_state,
+                buffers: descriptor.vertex.buffers,
                 module: descriptor.shader_module,
                 entryPoint: "vertex_main"
             },
@@ -61,7 +61,7 @@ class RenderPipeline extends PipeLine {
             fragment: {
                 module: descriptor.shader_module,
                 entryPoint: "fragment_main",
-                targets: descriptor.fragment.color_target_state,
+                targets: descriptor.fragment.targets,
             },
         });
     }
@@ -81,16 +81,19 @@ class PipelineFactor {
     }
 
     create_compute_pipeline(descriptor) {
-        const pipeline = new ComputePipeline().create_resource(this.device, descriptor);
+        const pipeline = new ComputePipeline();
+        pipeline.create_resource(this.device, descriptor);
         return pipeline;
     }
 
     create_render_pipeline(descriptor) {
-        const pipeline = new RenderPipeline().create_resource(this.device, descriptor);
+        const pipeline = new RenderPipeline();
+        pipeline.create_resource(this.device, descriptor);
         return pipeline;
     }
 
     create_pipeline_layout(descriptor) {
+        const device = this.device;
         const entry = {
             binding: 0,
             visibility: GPUShaderStage.VERTEX,

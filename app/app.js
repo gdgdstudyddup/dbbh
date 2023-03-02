@@ -50,7 +50,7 @@ class DEngine {
         const base_context_configuration = new ContextConfig('bgra8unorm', 'opaque');
         const gpu = new WebGPU(canvas, context, adapter, device, static_bind_group, base_context_configuration);
         gpu.set_pipeline_factor(pipeline_factor(device));
-        gpu.set_pipeline_factor(texture_factor(device));
+        gpu.set_texture_factor(texture_factor(device));
         gpu.set_pass_factor(pass_factor(device));
         gpu.set_encoder(new Encoder(device));
         this.cluster_renderer = new ClusterRenderer({ gpu });

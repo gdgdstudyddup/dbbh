@@ -32,8 +32,8 @@ export class WebGPU {
 
         this.depth_texture = device.createTexture(depth_texture_descriptor);
     }
-    create_view() {
-        this.pass_factor.resource.colorAttachments[0].view = this.context.getCurrentTexture().createView();
+    create_view(pass) {
+        pass.colorAttachments[0].view = this.context.getCurrentTexture().createView();
     }
     set_depth_texture(depth_texture) {
         this.depth_texture = depth_texture;
