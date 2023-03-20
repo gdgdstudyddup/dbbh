@@ -29,6 +29,9 @@ class DEngine {
         this.clusterRenderer = new ClusterRenderer(gpu);
     }
     loop() {
+        // if(staticBufferNeedsUpdate){
+            // do update its a CPU operation
+        // }
         const gpu = this.gpu;
         gpu.begin();
         /* -----------demo-----------------
@@ -50,15 +53,20 @@ class DEngine {
         -----------demo-----------------*/
 
 
-        // do cull oc  construct the buffer pass
-        gpu.beginCompute();
-        gpu.setPipeline();
-        gpu.setBindGroup();
-        gpu.dispatch(1000/64);
-        gpu.endCompute();
-        // to be continue~
+        // do frustum cull oc lod
+        // gpu.beginCompute();
+        // gpu.setPipeline();
+        // gpu.setBindGroup();
+        // gpu.dispatch(1000/64);
+        // gpu.endCompute();
+        // construct the buffer ,  how about re-arrange??
+        // gpu.beginCompute();
+        // gpu.setPipeline();
+        // gpu.setBindGroup();
+        // gpu.dispatch(1000/64);
+        // gpu.endCompute();
 
-        // render vBuffer pass
+        // render gBuffer , i think it does not need vBuffer now~
         this.clusterRenderer.setEncoder(gpu);
         this.clusterRenderer.setCurrentPass();
         this.clusterRenderer.beginCurrentPass();
@@ -68,9 +76,10 @@ class DEngine {
         this.clusterRenderer.setIndexBuffer();
         this.clusterRenderer.drawIndexedIndirect();
         this.clusterRenderer.endCurrentPass();
+        //  dynamic object need render here use the depth buffer
+        
         // render compute pass
 
-        // render gBuffer pass
         // combine pass
         // render opacity thing
         gpu.end();

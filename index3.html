@@ -18,45 +18,79 @@
         const colorLocation = 0;
 
         const shader = `
-struct FragmentData {
-    @builtin(position) position: vec4<f32>,
-};
-struct Uniforms {
-    modelViewProjectionMatrix: mat4x4<f32>
-};
-@group(${bindGroupIndex}) @binding(${transformBindingNum}) var<uniform> uniforms: Uniforms;
-@vertex
-fn vertex_main(
-    @builtin(instance_index) instanceIdx : u32,
-    @builtin(vertex_index) VertexIndex : u32,
-    @location(${positionAttributeNum}) position: vec3<f32>,
-) -> FragmentData {
-    var outData: FragmentData;
-    outData.position = uniforms.modelViewProjectionMatrix *  vec4<f32>(position.xyz, 1.0);
-    //if(instanceIdx==0){outData.color = vec4<f32>(1.0,0.0,0.0,1.0);}
-    return outData;
-}
-@fragment
-fn fragment_main(data: FragmentData) -> @location(0) vec4<f32> {
-    return vec4<f32>(data.position.xy*0.002,1.0, 1.0);
-}
-`;
+        struct FragmentData {
+            @builtin(position) position: vec4<f32>,
+        };
+        struct Uniforms {
+            modelViewProjectionMatrix: mat4x4<f32>
+        };
+        @group(${bindGroupIndex}) @binding(${transformBindingNum}) var<uniform> uniforms: Uniforms;
+        @vertex
+        fn vertex_main(
+            @builtin(instance_index) instanceIdx : u32,
+            @builtin(vertex_index) VertexIndex : u32,
+            @location(${positionAttributeNum}) position: vec3<f32>,
+        ) -> FragmentData {
+            var outData: FragmentData;
+            outData.position = uniforms.modelViewProjectionMatrix *  vec4<f32>(position.xyz, 1.0);
+            //if(instanceIdx==0){outData.color = vec4<f32>(1.0,0.0,0.0,1.0);}
+            return outData;
+        }
+        @fragment
+        fn fragment_main(data: FragmentData) -> @location(0) vec4<f32> {
+            return vec4<f32>(1.0,1.0,1.0, 1.0);
+        }
+        `;
+        let eachSegmentOfLevels = [64, 32, 16, 8, 4];
+        let posArr = [-0.5, -0.25, 0.0, 0.25, 0.5]
         let cubeDraw, cubeBuffer, gpu, renderer;
         let device, context, verticesBuffer, indicesBuffer, renderPipeline, renderPassDescriptor;
         let transformBuffer, bindGroup;
         const projectionMatrix = mat4.create();
         const mappedGroups = [];
+        let objectLodGroup = [];// its a lod group of an object
+        for (let i = 0; i < eachSegmentOfLevels.length; i++) {
+            const geometry = createTorusKnot(0.1, 0.03, eachSegmentOfLevels[i], 0.0, 0.0, posArr[i]); // range of x [-0.5, 0.5]
+            // const geometry = createTorusKnot(0.1, 0.03, eachSegmentOfLevels[i]); // range of x [-0.5, 0.5]
+            objectLodGroup.push(geometry);
+        }
+        //1755 891 459 243 135
+        let offsets = [0, 0, 0, 0, 0];
+        for (let i = 1; i < eachSegmentOfLevels.length; i++) {
+            for (let j = 0; j < i; j++) {
+                offsets[i] += objectLodGroup[j].pos.length / 3;
+            }
+        }
+        //  offsets = [1755 / 3, (1755 + 891) / 3, (1755 + 891 + 459) / 3, (1755 + 891 + 459 + 243) / 3, (1755 + 891 + 459 + 243 + 135) / 3]
+        let vertArr = [];
+        let indexArr = [];
+        console.log((1755 + 891) / 3, offsets, objectLodGroup)
+        for (let i = 0; i < objectLodGroup.length; i++) {
+            // console.log(objectLodGroup[i].pos)
+            vertArr.push(...objectLodGroup[i].pos);
+            // if (i > 0) {
+            //     for (let j = 0; j < objectLodGroup[i].index.length; j++) {
+            //         indexArr.push(objectLodGroup[i].index[j] + offsets[i]);
+            //     }
+            // }
+            // else {
+            //     indexArr.push(...objectLodGroup[i].index);
+            // }
+            // use indirect it does not need offset 
+            indexArr.push(...objectLodGroup[i].index);
+        }
+        console.log(indexArr)
         // const test = createSphere(0.1, 20, 20, 0.5);
-        const test = createTorusKnot(0.1,0.02, -0.5);
-        let realIndex = test.index.length;
+        const test = createTorusKnot(0.1, 0.03, 50, -0.5, 0.0, 0.0);
+        let realIndex = indexArr.length;
         const colorOffset = 4 * 4;
         const vertexSize = 4 * 3;
         let verticesArray = new Float32Array();
-        let indicesArray = new Uint16Array(test.index);
+        let indicesArray = new Uint16Array();
         // const data = {
-        verticesArray = new Float32Array(test.pos);
-        indicesArray = new Uint16Array(test.index);
-        console.log(test, indicesArray, realIndex)
+        verticesArray = new Float32Array(vertArr);
+        indicesArray = new Uint16Array(indexArr);
+        console.log(vertArr, indicesArray, realIndex)
         // }
         async function init() {
             const adapter = await navigator.gpu.requestAdapter();
@@ -70,7 +104,7 @@ fn fragment_main(data: FragmentData) -> @location(0) vec4<f32> {
             canvas.height = canvasSize.height;
 
             const aspect = Math.abs(canvas.width / canvas.height);
-            mat4.perspective(projectionMatrix, (2 * Math.PI) / 5, aspect, 0.01, 1000.0);
+            mat4.perspective(projectionMatrix, (2 * Math.PI) / 5, aspect, 0.001, 1000.0);
 
             context = canvas.getContext('webgpu');
             const canvasFormat = "bgra8unorm";
@@ -190,7 +224,7 @@ fn fragment_main(data: FragmentData) -> @location(0) vec4<f32> {
 
             const colorAttachment = {
                 // attachment is acquired in render loop.
-                clearValue: { r: 0.5, g: 1.0, b: 1.0, a: 1.0 }, // GPUColor
+                clearValue: { r: 0.3, g: 0.7, b: 1.0, a: 1.0 }, // GPUColor
                 loadOp: "clear",
                 storeOp: "store",
             };
@@ -222,9 +256,9 @@ fn fragment_main(data: FragmentData) -> @location(0) vec4<f32> {
                 depthClearValue: 1.0,
                 depthLoadOp: "clear",
                 depthStoreOp: "store",
-                stencilClearValue: 0,
-                stencilLoadOp: "load",
-                stencilStoreOp: "store",
+                // stencilClearValue: 0,
+                // stencilLoadOp: "load",
+                // stencilStoreOp: "store",
             };
 
             renderPassDescriptor = {
@@ -257,10 +291,10 @@ fn fragment_main(data: FragmentData) -> @location(0) vec4<f32> {
             bindGroup = device.createBindGroup(bindGroupDescriptor);
 
             cubeDraw = new Uint32Array(5);
-            cubeDraw[0] = realIndex; // vertex_count;The number of vertices to draw.
+            cubeDraw[0] = objectLodGroup[0].index.length; // vertex_count;The number of vertices to draw.
             cubeDraw[1] = 1; // instance_count; The number of instances to draw.
             cubeDraw[2] = 0; // base_index; The base index within the index buffer.
-            cubeDraw[3] = 0; // vertex_offset; The value added to the vertex index before indexing into the vertex buffer.
+            cubeDraw[3] = offsets[0]; // vertex_offset; The value added to the vertex index before indexing into the vertex buffer.
             cubeDraw[4] = 0; // base_instance; The instance ID of the first instance to draw. Has to be 0, unless Features::INDIRECT_FIRST_INSTANCE is enabled.
             console.log(cubeDraw.byteLength)
             cubeBuffer = device.createBuffer({
@@ -405,9 +439,22 @@ fn fragment_main(data: FragmentData) -> @location(0) vec4<f32> {
                 //     this.drawIndexedIndirect(cubeBuffer[i], 0);
                 // }
                 this.drawIndexedIndirect(cubeBuffer, 0);
-                this.endCurrentPass();
-                gpu.end();
-            }
+
+                cubeDraw[0] = objectLodGroup[2].index.length; // vertex_count;The number of vertices to draw.
+                cubeDraw[1] = 1; // instance_count; The number of instances to draw.
+                cubeDraw[2] = 0; // base_index; The base index within the index buffer.
+                cubeDraw[3] = offsets[2]; // vertex_offset; The value added to the vertex index before indexing into the vertex buffer.
+                cubeDraw[4] = 0; // base_instance; The instance ID of the first instance to draw. Has to be 0, unless Features::INDIRECT_FIRST_INSTANCE is enabled.
+                let cubeBuffer2 = device.createBuffer({
+                    size: cubeDraw.byteLength,
+                    usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST
+                });
+                device.queue.writeBuffer(cubeBuffer2, 0, cubeDraw);
+                    this.drawIndexedIndirect(cubeBuffer2, 0);
+
+                    this.endCurrentPass();
+                    gpu.end();
+                }
         }
     </script>
 </body>
