@@ -20,9 +20,11 @@
         const shader = `
         struct FragmentData {
             @builtin(position) position: vec4<f32>,
+            @location(0) color : vec4<f32>,
         };
         struct Uniforms {
-            modelViewProjectionMatrix: mat4x4<f32>
+            // modelViewProjectionMatrix: mat4x4<f32>
+            modelViewProjectionMatrix : array<mat4x4<f32>, 3>,
         };
         @group(${bindGroupIndex}) @binding(${transformBindingNum}) var<uniform> uniforms: Uniforms;
         @vertex
@@ -32,13 +34,21 @@
             @location(${positionAttributeNum}) position: vec3<f32>,
         ) -> FragmentData {
             var outData: FragmentData;
-            outData.position = uniforms.modelViewProjectionMatrix *  vec4<f32>(position.xyz, 1.0);
-            //if(instanceIdx==0){outData.color = vec4<f32>(1.0,0.0,0.0,1.0);}
+            outData.color = vec4<f32>(0.0,0.0,1.0,1.0);
+            if(instanceIdx>0){
+                //  instanceIdx start at 1 when i use baseinstance = 1
+                outData.position = uniforms.modelViewProjectionMatrix[instanceIdx] *  vec4<f32>(position.xyz, 1.0);
+                    
+            } else {
+                outData.position = uniforms.modelViewProjectionMatrix[instanceIdx] *  vec4<f32>(position.xyz, 1.0);
+            }
+            if(instanceIdx==0){outData.color = vec4<f32>(1.0,0.0,0.0,1.0);}
+            if(instanceIdx==2){outData.color = vec4<f32>(1.0,0.0,1.0,1.0);}
             return outData;
         }
         @fragment
         fn fragment_main(data: FragmentData) -> @location(0) vec4<f32> {
-            return vec4<f32>(1.0,1.0,1.0, 1.0);
+            return data.color;
         }
         `;
         let eachSegmentOfLevels = [64, 32, 16, 8, 4];
@@ -50,8 +60,8 @@
         const mappedGroups = [];
         let objectLodGroup = [];// its a lod group of an object
         for (let i = 0; i < eachSegmentOfLevels.length; i++) {
-            const geometry = createTorusKnot(0.1, 0.03, eachSegmentOfLevels[i], 0.0, 0.0, posArr[i]); // range of x [-0.5, 0.5]
-            // const geometry = createTorusKnot(0.1, 0.03, eachSegmentOfLevels[i]); // range of x [-0.5, 0.5]
+            // const geometry = createTorusKnot(0.1, 0.03, eachSegmentOfLevels[i], 0.0, 0.0, posArr[i]); // range of x [-0.5, 0.5]
+            const geometry = createTorusKnot(0.1, 0.03, eachSegmentOfLevels[i]); // range of x [-0.5, 0.5]
             objectLodGroup.push(geometry);
         }
         //1755 891 459 243 135
@@ -64,7 +74,6 @@
         //  offsets = [1755 / 3, (1755 + 891) / 3, (1755 + 891 + 459) / 3, (1755 + 891 + 459 + 243) / 3, (1755 + 891 + 459 + 243 + 135) / 3]
         let vertArr = [];
         let indexArr = [];
-        console.log((1755 + 891) / 3, offsets, objectLodGroup)
         for (let i = 0; i < objectLodGroup.length; i++) {
             // console.log(objectLodGroup[i].pos)
             vertArr.push(...objectLodGroup[i].pos);
@@ -79,7 +88,6 @@
             // use indirect it does not need offset 
             indexArr.push(...objectLodGroup[i].index);
         }
-        console.log(indexArr)
         // const test = createSphere(0.1, 20, 20, 0.5);
         const test = createTorusKnot(0.1, 0.03, 50, -0.5, 0.0, 0.0);
         let realIndex = indexArr.length;
@@ -90,11 +98,16 @@
         // const data = {
         verticesArray = new Float32Array(vertArr);
         indicesArray = new Uint16Array(indexArr);
-        console.log(vertArr, indicesArray, realIndex)
         // }
         async function init() {
             const adapter = await navigator.gpu.requestAdapter();
-            device = await adapter.requestDevice();
+            // 下面这行打印结果是true
+            console.log('adapter.features.has("indirect-first-instance") = ', adapter.features.has("indirect-first-instance"));
+            const requiredFeatures = [];
+            requiredFeatures.push('indirect-first-instance');
+            device = await adapter.requestDevice({
+                requiredFeatures
+            });
 
             // Canvas
 
@@ -148,7 +161,6 @@
             verticesWriteArray.set(verticesArray);
             verticesBuffer.unmap();
             //
-            console.log(indicesArray.byteLength, GPUBufferUsage.INDEX)
             const indicesBufferDescriptor = {
                 size: indicesArray.byteLength,
                 usage: GPUBufferUsage.INDEX,
@@ -268,7 +280,7 @@
 
             // Transform Buffers and Bindings
 
-            const transformSize = 4 * 16;
+            const transformSize = 4 * 16 * 3;
             const transformBufferDescriptor = {
                 size: transformSize,
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -289,13 +301,13 @@
                 entries: [transformBufferBindGroupEntry]
             };
             bindGroup = device.createBindGroup(bindGroupDescriptor);
-
             cubeDraw = new Uint32Array(5);
             cubeDraw[0] = objectLodGroup[0].index.length; // vertex_count;The number of vertices to draw.
             cubeDraw[1] = 1; // instance_count; The number of instances to draw.
             cubeDraw[2] = 0; // base_index; The base index within the index buffer.
-            cubeDraw[3] = offsets[0]; // vertex_offset; The value added to the vertex index before indexing into the vertex buffer.
-            cubeDraw[4] = 0; // base_instance; The instance ID of the first instance to draw. Has to be 0, unless Features::INDIRECT_FIRST_INSTANCE is enabled.
+            cubeDraw[3] = 0; // vertex_offset; The value added to the vertex index before indexing into the vertex buffer.
+            cubeDraw[4] = 2; // base_instance; The instance ID of the first instance to draw. Has to be 0, unless Features::INDIRECT_FIRST_INSTANCE is enabled.
+            // baseinstance是这里每一次indirect绘制中，instance起始的offset， instanceID起始就是这个值 然后根据count加 比如目前这组数据 第一个绘制就是instanceId = 2所以是紫色 
             console.log(cubeDraw.byteLength)
             cubeBuffer = device.createBuffer({
                 size: cubeDraw.byteLength,
@@ -327,13 +339,43 @@
         }
 
         function updateTransformArray() {
-            const viewMatrix = mat4.create();
-            mat4.translate(viewMatrix, viewMatrix, vec3.fromValues(0, 0, -1.0));
-            const now = Date.now() / 1000;
-            mat4.rotate(viewMatrix, viewMatrix, 1, vec3.fromValues(Math.sin(now), Math.cos(now), 0));
-            const modelViewProjectionMatrix = mat4.create();
-            mat4.multiply(modelViewProjectionMatrix, projectionMatrix, viewMatrix);
-            device.queue.writeBuffer(transformBuffer, 0, modelViewProjectionMatrix);
+            let arr = [];
+            const matrixFloatCount = 16; // 4x4 matrix
+            const matrixSize = 64;
+            {
+                const viewMatrix = mat4.create();
+                mat4.translate(viewMatrix, viewMatrix, vec3.fromValues(0, 0, -1.0));
+                const now = Date.now() / 1000;
+                mat4.rotate(viewMatrix, viewMatrix, 1, vec3.fromValues(Math.sin(now), Math.cos(now), 0));
+                const modelViewProjectionMatrix = mat4.create();
+                mat4.multiply(modelViewProjectionMatrix, projectionMatrix, viewMatrix);
+                arr.push(...modelViewProjectionMatrix)
+            }
+            {
+                const viewMatrix = mat4.create();
+                mat4.translate(viewMatrix, viewMatrix, vec3.fromValues(0.25, 0, -1.0));
+                const now = Date.now() / 1000;
+                mat4.rotate(viewMatrix, viewMatrix, 1, vec3.fromValues(Math.sin(now), Math.cos(now), 0));
+                const modelViewProjectionMatrix = mat4.create();
+                mat4.multiply(modelViewProjectionMatrix, projectionMatrix, viewMatrix);
+                arr.push(...modelViewProjectionMatrix)
+            }
+            {
+                const viewMatrix = mat4.create();
+                mat4.translate(viewMatrix, viewMatrix, vec3.fromValues(0.5, 0, -1.0));
+                const now = Date.now() / 500;
+                mat4.rotate(viewMatrix, viewMatrix, 1, vec3.fromValues(Math.cos(now), Math.sin(now), 0));
+                const modelViewProjectionMatrix = mat4.create();
+                mat4.multiply(modelViewProjectionMatrix, projectionMatrix, viewMatrix);
+                arr.push(...modelViewProjectionMatrix);
+                let uniform = new Float32Array(16 * 3);
+                uniform.set(arr, 0)
+                // console.log(arr)
+                device.queue.writeBuffer(transformBuffer, 0,
+                    uniform.buffer,
+                    uniform.byteOffset,
+                    uniform.byteLength);
+            }
         }
 
         window.addEventListener("load", init);
@@ -439,22 +481,23 @@
                 //     this.drawIndexedIndirect(cubeBuffer[i], 0);
                 // }
                 this.drawIndexedIndirect(cubeBuffer, 0);
+                // this.drawIndexed(objectLodGroup[0].index.length, 2, 0, 0, 0) ;
 
-                cubeDraw[0] = objectLodGroup[2].index.length; // vertex_count;The number of vertices to draw.
-                cubeDraw[1] = 1; // instance_count; The number of instances to draw.
-                cubeDraw[2] = 0; // base_index; The base index within the index buffer.
-                cubeDraw[3] = offsets[2]; // vertex_offset; The value added to the vertex index before indexing into the vertex buffer.
-                cubeDraw[4] = 0; // base_instance; The instance ID of the first instance to draw. Has to be 0, unless Features::INDIRECT_FIRST_INSTANCE is enabled.
-                let cubeBuffer2 = device.createBuffer({
-                    size: cubeDraw.byteLength,
-                    usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST
-                });
-                device.queue.writeBuffer(cubeBuffer2, 0, cubeDraw);
-                    this.drawIndexedIndirect(cubeBuffer2, 0);
+                // cubeDraw[0] = objectLodGroup[2].index.length; // vertex_count;The number of vertices to draw.
+                // cubeDraw[1] = 1; // instance_count; The number of instances to draw.
+                // cubeDraw[2] = 0; // base_index; The base index within the index buffer.
+                // cubeDraw[3] = offsets[2]; // vertex_offset; The value added to the vertex index before indexing into the vertex buffer.
+                // cubeDraw[4] = 0; // base_instance; The instance ID of the first instance to draw. Has to be 0, unless Features::INDIRECT_FIRST_INSTANCE is enabled.
+                // let cubeBuffer2 = device.createBuffer({
+                //     size: cubeDraw.byteLength,
+                //     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST
+                // });
+                // device.queue.writeBuffer(cubeBuffer2, 0, cubeDraw);
+                //     this.drawIndexedIndirect(cubeBuffer2, 0);
 
-                    this.endCurrentPass();
-                    gpu.end();
-                }
+                this.endCurrentPass();
+                gpu.end();
+            }
         }
     </script>
 </body>
