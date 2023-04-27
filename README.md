@@ -1,4 +1,5 @@
-app.hall.add obj
+app.hall.add remove obj
+hall.style is post process thing
 
 app.work ->  app.assistant.takeArtist(camera) -> artist.work()->callHelper()
 <----<---<---------<-------<------------<----------<--------<---------------
