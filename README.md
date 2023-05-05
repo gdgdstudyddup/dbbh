@@ -1,9 +1,9 @@
-app.hall.add remove obj
+dbbh.hall.add remove obj
 hall.style is post process thing
 
-app.work ->  app.assistant.takeArtist(camera) -> artist.work()->callHelper()
+dbbh.work ->  dbbh.assistant.takeArtist(camera) -> artist.work()->callHelper()
 <----<---<---------<-------<------------<----------<--------<---------------
--> artistHelper.work()-> process(app.hall)-->maintain clusterPool--->classificationNormalObject-->cull()--->sort()--->
+-> artistHelper.work()-> process(dbbh.hall)-->maintain clusterPool--->classificationNormalObject-->cull()--->sort()--->
 <----<---<---------<-------<------------<----------<--------<---<------------<----------<--------<---<------------<----------<--------<---
 ->simpleArtist.draw()->each pass->draw cluster->draw opaque->draw transparent->combine result
 

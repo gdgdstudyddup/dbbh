@@ -1,5 +1,5 @@
-import { generateUUID } from "./math/MathUtils";
-import { Vector3 } from "./math/Vector3";
+import { generateUUID } from "../math/MathUtils";
+import { Vector3 } from "../math/Vector3";
 
 export class Object3D {
     static DefaultUp = new Vector3(0, 0, 1);

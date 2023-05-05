@@ -1,4 +1,4 @@
-import { Object3D } from "../Object3D";
+import { Object3D } from "../3d/Object3D";
 import { Cluster } from "./drawcall/DrawCall";
 
 /* 
