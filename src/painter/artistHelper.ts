@@ -1,8 +1,8 @@
-import { Object3D } from "../object3D";
-import { Cluster } from "./drawcall/drawCall";
+import { Object3D } from "../Object3D";
+import { Cluster } from "./drawcall/DrawCall";
 
 /* 
-    dynamic object if get cluster Tag in some case, it will be observe some frames then it will be put into cluster objects. 
+    dynamic object which has cluster Tag in some case, it will be observed some frames then it will be put into cluster objects. 
     keep in mind cluster is an opaque object.
     analyze the draw call list and collect the objects could be render as cluster. 
     when we generate the big buffer, during the process, we could store the offset and the bounding box information.
@@ -42,9 +42,11 @@ export class ArtistHelper {
       if is normal object do classification put in opaque queue or transparent queue for paint.
     */
   }
-  maintainClusterPool(){
-    
+
+  maintainClusterPool() {
+
   }
+
   // pre op
   classification() {
     // collect things should be cluster

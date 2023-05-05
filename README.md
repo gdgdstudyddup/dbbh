@@ -5,7 +5,7 @@ app.work ->  app.assistant.takeArtist(camera) -> artist.work()->callHelper()
 <----<---<---------<-------<------------<----------<--------<---------------
 -> artistHelper.work()-> process(app.hall)-->maintain clusterPool--->classificationNormalObject-->cull()--->sort()--->
 <----<---<---------<-------<------------<----------<--------<---<------------<----------<--------<---<------------<----------<--------<---
-->artist.draw()->each pass->draw cluster->draw opaque->draw transparent->combine result
+->simpleArtist.draw()->each pass->draw cluster->draw opaque->draw transparent->combine result
 
 
 

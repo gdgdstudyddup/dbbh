@@ -1,4 +1,4 @@
-import { BBox } from "../../math/BBox";
+import { Box3 } from "../../math/Box3";
 
 enum RenderType {
     OpaqueNormal,
@@ -21,7 +21,7 @@ export class DrawCall {
 export class Cluster  {
     strategy = Strategy.LODByObject;
     offset: number;
-    bbox: BBox;
+    Box3: Box3;
 }
 
 export class DrawCallList {
