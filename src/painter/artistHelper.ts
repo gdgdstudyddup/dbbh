@@ -1,5 +1,6 @@
 import { Object3D } from "../3d/Object3D";
-import { Cluster } from "./drawcall/DrawCall";
+import { Hall } from "../DBBH";
+import { Cluster, DrawCallList } from "./drawcall/DrawCall";
 
 /* 
     dynamic object which has cluster Tag in some case, it will be observed some frames then it will be put into cluster objects. 
@@ -15,7 +16,7 @@ export class ArtistHelper {
   device: GPUDevice;
   defaultDescriptor: GPUComputePipelineDescriptor;
   cullPipeline: GPUComputePipeline;
-  ssbo: [];
+  ssbo: Float32Array;
   static clusterPool: Object3D[] = [];
   static candidates: Object3D[] = [];
   static rCandidates: Object3D[] = []; // r means remove
@@ -25,26 +26,44 @@ export class ArtistHelper {
       layout: 'auto',
       compute: {
         module: device.createShaderModule({
-          code: '// cull shader',
+          code: `// cull shader
+          @group(0) @binding(0) var<storage, read_write> data: array<f32>;
+  
+        @compute @workgroup_size(1) fn computeSomething(
+          @builtin(global_invocation_id) id: vec3<u32>
+        ) {
+          let i = id.x;
+          data[i] = data[i] * 2.0;
+        }
+          `,
         }),
         entryPoint: 'main',
       },
     }
-    this.cullPipeline = cullPipeline || this.device.createComputePipeline(this.defaultDescriptor);
+    // this.cullPipeline = cullPipeline || this.device.createComputePipeline(this.defaultDescriptor);
     // init ssbo resize it into 50M or 1G  to be continue. may be can read it from json config file.
   }
   // pre op
-  process(hall: Object3D) {
-
+  process(hall: Hall) {
+    const camera = hall.mainCamera;
     /* traverse and pick which ('cluster' === tag) into clusterPool; and do matrix update work.
       if object state is  clean  do classification put it into where it should be. and set state such as alreadyInClusterPool.
       if object state is  alreadyInClusterPool then continue;
       if is normal object do classification put in opaque queue or transparent queue for paint.
     */
+    return new DrawCallList();
   }
 
   maintainClusterPool() {
-
+    const device = this.device;
+    const input = new Float32Array([1, 3, 5]);
+    const workBuffer = device.createBuffer({
+      label: 'work buffer',
+      size: input.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+    // Copy our input data to that buffer
+    device.queue.writeBuffer(workBuffer, 0, input);
   }
 
   // pre op

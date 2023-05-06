@@ -1,7 +1,11 @@
-import { BasicSkill } from "./Skill";
 import { DrawCallList } from "./drawcall/DrawCall";
+import { Artist } from "./Artist";
 // for roaming
-class RealisticArtist implements BasicSkill {
+class RealisticArtist extends Artist {
+    prepare(): void {
+
+    }
+
     draw(drawCallList: DrawCallList): void {
 
     }

@@ -1,11 +1,10 @@
+import { Drawable } from "./Drawable";
 import { Geometry } from "./geometry/geometry";
 import { Material } from "./material/Material";
-import { Object3D } from "./Object3D";
 
-export class Drawable extends Object3D {
-    geometry: Geometry;
-    material: Material;
+// Mesh means triangle stuff
+export class Mesh extends Drawable {
     constructor(geometry: Geometry, material: Material | Material[]) {
-        super();
+        super(geometry, material);
     }
 }

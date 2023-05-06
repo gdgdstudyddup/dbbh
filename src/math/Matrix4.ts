@@ -118,7 +118,11 @@ class Matrix4 {
         return this;
 
     }
+    makeRotationFromQuaternion(q) {
 
+        return this.compose(_zero, q, _one);
+
+    }
     multiply(m): Matrix4 {
 
         return this.multiplyMatrices(this, m);
@@ -263,7 +267,22 @@ class Matrix4 {
 
     }
 
-    invert(): Matrix4 {
+
+
+    scale(v: Vector3): Matrix4 {
+
+        const te = this.elements;
+        const x = v.x, y = v.y, z = v.z;
+
+        te[0] *= x; te[4] *= y; te[8] *= z;
+        te[1] *= x; te[5] *= y; te[9] *= z;
+        te[2] *= x; te[6] *= y; te[10] *= z;
+        te[3] *= x; te[7] *= y; te[11] *= z;
+
+        return this;
+
+    }
+    invert() {
 
         // based on http://www.euclideanspace.com/maths/algebra/matrix/functions/inverse/fourD/index.htm
         const te = this.elements,
@@ -308,24 +327,221 @@ class Matrix4 {
 
     }
 
-    scale(v: Vector3): Matrix4 {
+
+    getMaxScaleOnAxis() {
 
         const te = this.elements;
-        const x = v.x, y = v.y, z = v.z;
 
-        te[0] *= x; te[4] *= y; te[8] *= z;
-        te[1] *= x; te[5] *= y; te[9] *= z;
-        te[2] *= x; te[6] *= y; te[10] *= z;
-        te[3] *= x; te[7] *= y; te[11] *= z;
+        const scaleXSq = te[0] * te[0] + te[1] * te[1] + te[2] * te[2];
+        const scaleYSq = te[4] * te[4] + te[5] * te[5] + te[6] * te[6];
+        const scaleZSq = te[8] * te[8] + te[9] * te[9] + te[10] * te[10];
+
+        return Math.sqrt(Math.max(scaleXSq, scaleYSq, scaleZSq));
+
+    }
+
+    makeTranslation(x, y, z) {
+
+        this.set(
+
+            1, 0, 0, x,
+            0, 1, 0, y,
+            0, 0, 1, z,
+            0, 0, 0, 1
+
+        );
 
         return this;
 
     }
 
-    makePerspective(fieldOfViewYInRadians: number, aspect: number, zNear: number, zFar: number, dst?: Matrix4): Matrix4 {
+    makeRotationX(theta) {
 
-        dst = dst || new Matrix4();
-        const te = dst.elements;
+        const c = Math.cos(theta), s = Math.sin(theta);
+
+        this.set(
+
+            1, 0, 0, 0,
+            0, c, - s, 0,
+            0, s, c, 0,
+            0, 0, 0, 1
+
+        );
+
+        return this;
+
+    }
+
+    makeRotationY(theta) {
+
+        const c = Math.cos(theta), s = Math.sin(theta);
+
+        this.set(
+
+            c, 0, s, 0,
+            0, 1, 0, 0,
+            - s, 0, c, 0,
+            0, 0, 0, 1
+
+        );
+
+        return this;
+
+    }
+
+    makeRotationZ(theta) {
+
+        const c = Math.cos(theta), s = Math.sin(theta);
+
+        this.set(
+
+            c, - s, 0, 0,
+            s, c, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+
+        );
+
+        return this;
+
+    }
+
+    makeRotationAxis(axis, angle) {
+
+        // Based on http://www.gamedev.net/reference/articles/article1199.asp
+
+        const c = Math.cos(angle);
+        const s = Math.sin(angle);
+        const t = 1 - c;
+        const x = axis.x, y = axis.y, z = axis.z;
+        const tx = t * x, ty = t * y;
+
+        this.set(
+
+            tx * x + c, tx * y - s * z, tx * z + s * y, 0,
+            tx * y + s * z, ty * y + c, ty * z - s * x, 0,
+            tx * z - s * y, ty * z + s * x, t * z * z + c, 0,
+            0, 0, 0, 1
+
+        );
+
+        return this;
+
+    }
+
+    makeScale(x, y, z) {
+
+        this.set(
+
+            x, 0, 0, 0,
+            0, y, 0, 0,
+            0, 0, z, 0,
+            0, 0, 0, 1
+
+        );
+
+        return this;
+
+    }
+
+    makeShear(xy, xz, yx, yz, zx, zy) {
+
+        this.set(
+
+            1, yx, zx, 0,
+            xy, 1, zy, 0,
+            xz, yz, 1, 0,
+            0, 0, 0, 1
+
+        );
+
+        return this;
+
+    }
+
+    compose(position, quaternion, scale) {
+
+        const te = this.elements;
+
+        const x = quaternion._x, y = quaternion._y, z = quaternion._z, w = quaternion._w;
+        const x2 = x + x, y2 = y + y, z2 = z + z;
+        const xx = x * x2, xy = x * y2, xz = x * z2;
+        const yy = y * y2, yz = y * z2, zz = z * z2;
+        const wx = w * x2, wy = w * y2, wz = w * z2;
+
+        const sx = scale.x, sy = scale.y, sz = scale.z;
+
+        te[0] = (1 - (yy + zz)) * sx;
+        te[1] = (xy + wz) * sx;
+        te[2] = (xz - wy) * sx;
+        te[3] = 0;
+
+        te[4] = (xy - wz) * sy;
+        te[5] = (1 - (xx + zz)) * sy;
+        te[6] = (yz + wx) * sy;
+        te[7] = 0;
+
+        te[8] = (xz + wy) * sz;
+        te[9] = (yz - wx) * sz;
+        te[10] = (1 - (xx + yy)) * sz;
+        te[11] = 0;
+
+        te[12] = position.x;
+        te[13] = position.y;
+        te[14] = position.z;
+        te[15] = 1;
+
+        return this;
+
+    }
+
+    decompose(position, quaternion, scale) {
+
+        const te = this.elements;
+        let sx = _v1.set(te[0], te[1], te[2]).length();
+        const sy = _v1.set(te[4], te[5], te[6]).length();
+        const sz = _v1.set(te[8], te[9], te[10]).length();
+
+        // if determine is negative, we need to invert one scale
+        const det = this.determinant();
+        if (det < 0) sx = - sx;
+
+        position.x = te[12];
+        position.y = te[13];
+        position.z = te[14];
+
+        // scale the rotation part
+        _m1.copy(this);
+
+        const invSX = 1 / sx;
+        const invSY = 1 / sy;
+        const invSZ = 1 / sz;
+
+        _m1.elements[0] *= invSX;
+        _m1.elements[1] *= invSX;
+        _m1.elements[2] *= invSX;
+
+        _m1.elements[4] *= invSY;
+        _m1.elements[5] *= invSY;
+        _m1.elements[6] *= invSY;
+
+        _m1.elements[8] *= invSZ;
+        _m1.elements[9] *= invSZ;
+        _m1.elements[10] *= invSZ;
+
+        quaternion.setFromRotationMatrix(_m1);
+
+        scale.x = sx;
+        scale.y = sy;
+        scale.z = sz;
+
+        return this;
+
+    }
+
+    makePerspective(fieldOfViewYInRadians: number, aspect: number, zNear: number, zFar: number): Matrix4 {
+
+        const te = this.elements;
 
         const f = Math.tan(Math.PI * 0.5 - 0.5 * fieldOfViewYInRadians);
 
@@ -356,13 +572,13 @@ class Matrix4 {
             te[14] = zFar * zNear * rangeInv;
         }
 
-        return dst;
+        return this;
 
     }
 
-    makeOrthographic(left: number, right: number, bottom: number, top: number, near: number, far: number, dst?: Matrix4): Matrix4 {
-        dst = dst || new Matrix4();
-        const te = dst.elements;
+    makeOrthographic(left: number, right: number, bottom: number, top: number, near: number, far: number): Matrix4 {
+
+        const te = this.elements;
         te[0] = 2 / (right - left);
         te[1] = 0;
         te[2] = 0;
@@ -383,7 +599,7 @@ class Matrix4 {
         te[14] = near / (near - far);
         te[15] = 1;
 
-        return dst;
+        return this;
 
     }
 
@@ -490,7 +706,13 @@ class Matrix4 {
 
     }
 }
-
+const _v1 = /*@__PURE__*/ new Vector3();
+const _m1 = /*@__PURE__*/ new Matrix4();
+const _zero = /*@__PURE__*/ new Vector3(0, 0, 0);
+const _one = /*@__PURE__*/ new Vector3(1, 1, 1);
+const _x = /*@__PURE__*/ new Vector3();
+const _y = /*@__PURE__*/ new Vector3();
+const _z = /*@__PURE__*/ new Vector3();
 let xAxis: Vector3;
 let yAxis: Vector3;
 let zAxis: Vector3;
