@@ -1,5 +1,5 @@
 import { Object3D } from "../3d/Object3D";
-import { Hall } from "../DBBH";
+import { Hall } from "../3d/Hall";
 import { Cluster, DrawCallList } from "./drawcall/Drawcall";
 
 /* 

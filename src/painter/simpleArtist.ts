@@ -1,6 +1,6 @@
 import { Artist } from "./Artist";
 import { DrawCallList } from "./drawcall/Drawcall";
-import { Hall } from "../DBBH";
+import { Hall } from "../3d/Hall";
 // for editor
 export class SimpleArtist extends Artist {
     beginWork(hall: Hall) {
