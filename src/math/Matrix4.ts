@@ -1,5 +1,5 @@
-import { EPSILON } from './MathUtils.js';
-import { Vector3 } from './Vector3.js';
+import { EPSILON } from './MathUtils';
+import { Vector3 } from './Vector3';
 
 class Matrix4 {
 

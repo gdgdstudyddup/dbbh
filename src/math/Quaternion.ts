@@ -1,4 +1,4 @@
-import * as MathUtils from './MathUtils.js';
+import * as MathUtils from './MathUtils';
 
 class Quaternion {
     isQuaternion = true;
