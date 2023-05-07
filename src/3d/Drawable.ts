@@ -1,4 +1,4 @@
-import { Geometry } from "./geometry/geometry";
+import { Geometry } from "./geometry/Geometry";
 import { Material } from "./material/Material";
 import { Object3D } from "./Object3D";
 

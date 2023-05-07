@@ -1,5 +1,5 @@
 import { Drawable } from "./Drawable";
-import { Geometry } from "./geometry/geometry";
+import { Geometry } from "./geometry/Geometry";
 import { Material } from "./material/Material";
 
 // Mesh means triangle stuff

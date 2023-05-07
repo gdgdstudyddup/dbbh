@@ -247,4 +247,34 @@ export class Object3D {
         }
 
     }
+
+    traverseVisible(callback) {
+
+        if (this.visible === false) return;
+
+        callback(this);
+
+        const children = this.children;
+
+        for (let i = 0, l = children.length; i < l; i++) {
+
+            children[i].traverseVisible(callback);
+
+        }
+
+    }
+
+    traverseAncestors(callback) {
+
+        const parent = this.parent;
+
+        if (parent !== null) {
+
+            callback(parent);
+
+            parent.traverseAncestors(callback);
+
+        }
+
+    }
 }

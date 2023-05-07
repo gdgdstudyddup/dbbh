@@ -1,5 +1,5 @@
 import { Artist } from "./Artist";
-import { DrawCallList } from "./drawcall/DrawCall";
+import { DrawCallList } from "./drawcall/Drawcall";
 import { Hall } from "../DBBH";
 // for editor
 export class SimpleArtist extends Artist {
