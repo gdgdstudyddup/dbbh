@@ -1,6 +1,6 @@
 import { Object3D } from "../3d/Object3D";
 import { Hall } from "../3d/Hall";
-import { Cluster, DrawCallList } from "./drawcall/Drawcall";
+import { Cluster, DrawCallList } from "./drawcall/DrawCall";
 
 /* 
     dynamic object which has cluster Tag in some case, it will be observed some frames then it will be put into cluster objects. 
@@ -11,7 +11,7 @@ import { Cluster, DrawCallList } from "./drawcall/Drawcall";
     if max memory has been touch, latest recently used object will be remove all. rest of things will be paint in normal method. and the re-generate operation should not been execute frequently.
     i thought it can be execute every five seconds or ten. and memory contains texture and vertices data.
 */
-// collect cluster and do cull
+//collect cluster and do cull
 export class ArtistHelper {
   device: GPUDevice;
   defaultDescriptor: GPUComputePipelineDescriptor;
