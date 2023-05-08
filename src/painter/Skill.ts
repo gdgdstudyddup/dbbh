@@ -1,4 +1,4 @@
-import { DrawCallList } from "./drawcall/DrawCall";
+import { DrawCallList } from "./drawcall/DrawCall1";
 
 export interface BasicSkill {
     prepare():void;

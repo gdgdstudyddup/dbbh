@@ -1,4 +1,4 @@
-import { DrawCallList } from "./drawcall/Drawcall";
+import { DrawCallList } from "./drawcall/DrawCall1";
 import { Artist } from "./Artist";
 // for roaming
 class RealisticArtist extends Artist {
