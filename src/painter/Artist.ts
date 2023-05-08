@@ -1,5 +1,5 @@
 import { ArtistHelper } from "./ArtistHelper";
-import { DrawCallList } from "./drawcall/DrawCall1";
+import { DrawCallList } from "./drawcall/DrawCall";
 import { BasicSkill } from "./Skill";
 
 export class Artist implements BasicSkill {

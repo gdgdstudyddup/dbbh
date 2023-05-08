@@ -1,6 +1,6 @@
 import { Object3D } from "../3d/Object3D";
 import { Hall } from "../3d/Hall";
-import { Cluster, DrawCallList } from "./drawcall/DrawCall1";
+import { Cluster, DrawCallList } from "./drawcall/DrawCall";
 
 /* 
     dynamic object which has cluster Tag in some case, it will be observed some frames then it will be put into cluster objects. 
