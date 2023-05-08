@@ -4,7 +4,7 @@ import { SimpleArtist } from "./painter/SimpleArtist";
 
 // the job of this guy is taking an artist to some camera, this guy is abstract thing, so it not an object3d
 export class Party {
-    public static instance?: Party;
+    static instance?: Party;
     static currentFrame = 0;
     halls: Hall[] = [];
     isSuspend = false;
@@ -16,7 +16,7 @@ export class Party {
 
     context: GPUCanvasContext;
     activeArtist: Artist;
-    public static getInstance(): Party {
+    static getInstance(): Party {
         if (Party.instance === undefined) {
             Party.instance = new Party();
         }

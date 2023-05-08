@@ -6,12 +6,12 @@ import { Vector3 } from "../math/Vector3";
 
 export class Object3D {
     static DEFAULT_UP = new Vector3(0, 0, 1);
-    public isObject3D = true;
+    isObject3D = true;
     uuid = generateUUID();
     tag: string;
     parent: Object3D;
     children: Object3D[];
-    public up = Object3D.DEFAULT_UP.clone();
+    up = Object3D.DEFAULT_UP.clone();
     _position = new Vector3();
     _rotation = new Euler();
     _quaternion = new Quaternion();
