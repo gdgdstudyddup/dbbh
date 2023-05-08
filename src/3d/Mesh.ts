@@ -8,17 +8,20 @@ export class Mesh extends Drawable {
     static CLUSTER_SIZE = 128;
     LOD: Mesh[] = [];
     clusters: Array<Float32Array>;
-    verticesInfo = [{
-        name: 'position',
-        size: 3,
-        type: 'f32'
-    },
-    {
-        name: 'uv',
-        size: 2,
-        type: 'f32'
+    /**
+     * {
+            name: 'position',
+            size: 3,
+            type: 'f32'
+        },
+        {
+            name: 'uv',
+            size: 2,
+            type: 'f32'
 
-    }]
+        }
+     */
+    verticesInfo = [];
     constructor(geometry: Geometry, material: Material | Material[], cluster = true) {
         super(geometry, material);
         if (cluster) {
