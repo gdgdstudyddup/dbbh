@@ -20,8 +20,8 @@ export class Object3D {
     worldMatrix = new Matrix4();
     localMatrixAutoUpdate = true;
     worldMatrixAutoUpdate = true;
-    localMatrixNeedsUpdate = false;
-    worldMatrixNeedsUpdate = false;
+    localMatrixNeedsUpdate = true;
+    worldMatrixNeedsUpdate = true;
     visible = true;
     castShadow = false;
     receiveShadow = false;
@@ -84,7 +84,7 @@ export class Object3D {
     }
 
     updateWorldMatrix(force = false) {
-        if (this.localMatrixNeedsUpdate) {
+        if (this.localMatrixNeedsUpdate || force) {
             this.localMatrix.compose(this.position, this.quaternion, this.scale);
             this.localMatrixNeedsUpdate = false;
         }

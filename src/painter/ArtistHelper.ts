@@ -1,6 +1,8 @@
 import { Object3D } from "../3d/Object3D";
 import { Hall } from "../3d/Hall";
 import { Cluster, DrawCallList } from "./drawcall/DrawCall";
+import { ClusterMaintainer } from "./maintainer/ClusterMaintainer";
+import { Mesh } from "../3d/Mesh";
 
 /* 
     dynamic object which has cluster Tag in some case, it will be observed some frames then it will be put into cluster objects. 
@@ -17,6 +19,7 @@ export class ArtistHelper {
   defaultDescriptor: GPUComputePipelineDescriptor;
   cullPipeline: GPUComputePipeline;
   ssbo: Float32Array;
+  clusterMaintainer = new ClusterMaintainer();
   static clusterPool: Object3D[] = [];
   static candidates: Object3D[] = [];
   static rCandidates: Object3D[] = []; // r means remove
@@ -46,11 +49,21 @@ export class ArtistHelper {
   // pre op
   process(hall: Hall) {
     const camera = hall.mainCamera;
+    // now we just do it  its update part
+    hall.updateWorldMatrix(); // TODO it should be changed to  update object only who has been modify some stuff such as position.
     /* traverse and pick which ('cluster' === tag) into clusterPool; and do matrix update work.
       if object state is  clean  do classification put it into where it should be. and set state such as alreadyInClusterPool.
       if object state is  alreadyInClusterPool then continue;
       if is normal object do classification put in opaque queue or transparent queue for paint.
     */
+    const clusterArray: Mesh[] = []
+    hall.traverse((object) => {
+      if (object.tag === 'cluster') {
+        clusterArray.push(object);
+      }
+    });
+    this.clusterMaintainer.maintain(clusterArray);
+
     return new DrawCallList();
   }
 

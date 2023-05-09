@@ -3,11 +3,16 @@ import { Geometry } from "./geometry/Geometry";
 import { Material } from "./material/Material";
 
 
+export type Attribute_Info = {
+    name: string;
+    size: number;
+    type: string;
+}
 // Mesh means triangle stuff
 export class Mesh extends Drawable {
     static CLUSTER_SIZE = 128;
     LOD: Mesh[] = [];
-    clusters: Array<Float32Array>;
+    clusters: Array<Float32Array>; // each level has it own cluster
     /**
      * {
             name: 'position',
@@ -21,7 +26,7 @@ export class Mesh extends Drawable {
 
         }
      */
-    verticesInfo = [];
+    verticesInfo: Attribute_Info[] = [];
     constructor(geometry: Geometry, material: Material | Material[], cluster = true) {
         super(geometry, material);
         if (cluster) {
@@ -140,5 +145,14 @@ export class Mesh extends Drawable {
             }
         }
         return clusters;
+    }
+
+    estimateGeometryMemory() {
+        const clusters = this.getOrGenerateClusterInformation();
+        let memory = 0;
+        for (let i = 0; i < clusters.length; i++) {
+            memory += clusters[i].byteLength;
+        }
+        return memory;
     }
 }
