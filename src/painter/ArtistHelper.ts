@@ -3,6 +3,7 @@ import { Hall } from "../3d/Hall";
 import { Cluster, DrawCallList } from "./drawcall/DrawCall";
 import { ClusterMaintainer } from "./maintainer/ClusterMaintainer";
 import { Mesh } from "../3d/Mesh";
+import { Camera } from "../3d/camera/Camera";
 
 /* 
     dynamic object which has cluster Tag in some case, it will be observed some frames then it will be put into cluster objects. 
@@ -20,6 +21,7 @@ export class ArtistHelper {
   cullPipeline: GPUComputePipeline;
   ssbo: Float32Array;
   clusterMaintainer = new ClusterMaintainer();
+  activeCamera: Camera;
   static clusterPool: Object3D[] = [];
   static candidates: Object3D[] = [];
   static rCandidates: Object3D[] = []; // r means remove
@@ -48,7 +50,7 @@ export class ArtistHelper {
   }
   // pre op
   process(hall: Hall) {
-    const camera = hall.mainCamera;
+    this.activeCamera = hall.mainCamera;
     // now we just do it  its update part
     hall.updateWorldMatrix(); // TODO it should be changed to  update object only who has been modify some stuff such as position.
     /* traverse and pick which ('cluster' === tag) into clusterPool; and do matrix update work.
@@ -56,27 +58,25 @@ export class ArtistHelper {
       if object state is  alreadyInClusterPool then continue;
       if is normal object do classification put in opaque queue or transparent queue for paint.
     */
+    const drawCallList = new DrawCallList();
+    drawCallList.transparent = [];
+    drawCallList.opaque = [];
     const clusterArray: Mesh[] = []
     hall.traverse((object) => {
       if (object.tag === 'cluster') {
         clusterArray.push(object);
+      } else if (object.material.transparent) {
+        drawCallList.transparent.push(object)
+      } else {
+        drawCallList.opaque.push(object);
       }
     });
-    this.clusterMaintainer.maintain(clusterArray);
+    const { clusters, vertexBuffer, outOfMemoryObjects } = this.clusterMaintainer.maintain(clusterArray);
 
-    return new DrawCallList();
-  }
-
-  maintainClusterPool() {
-    const device = this.device;
-    const input = new Float32Array([1, 3, 5]);
-    const workBuffer = device.createBuffer({
-      label: 'work buffer',
-      size: input.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-    });
-    // Copy our input data to that buffer
-    device.queue.writeBuffer(workBuffer, 0, input);
+    drawCallList.vertexBuffer = vertexBuffer;
+    drawCallList.clusters = clusters;
+    drawCallList.opaque.push(...outOfMemoryObjects);
+    return drawCallList;
   }
 
   // pre op
