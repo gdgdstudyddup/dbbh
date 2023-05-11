@@ -4,7 +4,7 @@ import { Object3D } from "./Object3D";
 
 export class Drawable extends Object3D {
     geometry: Geometry;
-    material: Material;
+    material: Material | Material[];
     constructor(geometry: Geometry, material: Material | Material[]) {
         super();
     }

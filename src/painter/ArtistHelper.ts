@@ -19,7 +19,6 @@ export class ArtistHelper {
   device: GPUDevice;
   defaultDescriptor: GPUComputePipelineDescriptor;
   cullPipeline: GPUComputePipeline;
-  ssbo: Float32Array;
   clusterMaintainer = new ClusterMaintainer();
   activeCamera: Camera;
   static clusterPool: Object3D[] = [];
@@ -49,7 +48,7 @@ export class ArtistHelper {
     // init ssbo resize it into 50M or 1G  to be continue. may be can read it from json config file.
   }
   // pre op
-  process(hall: Hall) {
+  async process(hall: Hall) {
     this.activeCamera = hall.mainCamera;
     // now we just do it  its update part
     hall.updateWorldMatrix(); // TODO it should be changed to  update object only who has been modify some stuff such as position.
@@ -76,6 +75,7 @@ export class ArtistHelper {
     drawCallList.vertexBuffer = vertexBuffer;
     drawCallList.clusters = clusters;
     drawCallList.opaque.push(...outOfMemoryObjects);
+    await this.cull(drawCallList);
     return drawCallList;
   }
 
@@ -91,12 +91,13 @@ export class ArtistHelper {
   }
 
   // render op how to do it in gpu driven?????????????????????????????????????
-  cullCluster(clusters: Cluster[]): Cluster[] {
+  async cullCluster(clusters: Cluster[]) {
     return []; // it is a ssbo result
   }
 
   // render op
-  cull(objects: Object3D): Object3D[] {
+  async cull(drawCallList: DrawCallList) {
+    // use ssbo A(clusters array) as input use ssbo B(culled and simplify cluster array, remove box3, only have information of map )  as output
     return [];
   }
 }

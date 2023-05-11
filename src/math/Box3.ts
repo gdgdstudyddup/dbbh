@@ -163,6 +163,28 @@ export class Box3 {
 
     }
 
+    getCorners() {
+        const center = this.max.clone().add(this.min).multiplyScalar(0.5);
+        const xyz = this.max.clone().sub(center);
+        const x = xyz.x;
+        const y = xyz.y;
+        const z = xyz.z;
+        const cx = center.x;
+        const cy = center.y;
+        const cz = center.z;
+        const corners = [
+            new Vector3(cx + x, cy + y, cz + z),
+            new Vector3(cx + x, cy + y, cz - z),
+            new Vector3(cx + x, cy - y, cz + z),
+            new Vector3(cx + x, cy - y, cz - z),
+            new Vector3(cx - x, cy + y, cz + z),
+            new Vector3(cx - x, cy + y, cz - z),
+            new Vector3(cx - x, cy - y, cz + z),
+            new Vector3(cx - x, cy - y, cz - z),
+        ];
+        return corners;
+    }
+
     intersectsBox(box) {
 
         // using 6 splitting planes to rule out intersections.

@@ -155,4 +155,8 @@ export class Mesh extends Drawable {
         }
         return memory;
     }
+
+    estimateMaterialMemory() {
+        
+    }
 }

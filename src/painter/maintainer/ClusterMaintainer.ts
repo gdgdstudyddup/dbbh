@@ -1,9 +1,9 @@
 import { Mesh } from "../../3d/Mesh";
-import { Box3 } from "../../math/Box3";
+import { Vector3 } from "../../math/Vector3";
 export type ClusterStruct = {
     sampleIndexOfInstanceMap: number;
     sampleIndexOfTransform: number;
-    box3: Box3;
+    box3: Vector3[]; // 8 vec3
 }
 export class ClusterMaintainer {
 
@@ -36,7 +36,7 @@ export class ClusterMaintainer {
                         clusters.push({
                             sampleIndexOfInstanceMap: instanceCount,
                             sampleIndexOfTransform: i,
-                            box3: mesh.geometry.box3
+                            box3: mesh.geometry.box3.getCorners()
                         });
                         instanceIDMap[instanceCount++] = currentOffset + count * Mesh.CLUSTER_SIZE * stride;
                     }
