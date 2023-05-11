@@ -95,6 +95,10 @@ class Vector3 {
 
     }
 
+    toVector4(w = 1) {
+        return new Vector4(this.x, this.y, this.z, w);
+    }
+
     copy(v) {
 
         this.x = v.x;

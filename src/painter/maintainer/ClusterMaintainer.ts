@@ -1,10 +1,20 @@
 import { Mesh } from "../../3d/Mesh";
+import { Material } from "../../DBBH";
 import { Vector3 } from "../../math/Vector3";
 export type ClusterStruct = {
-    sampleIndexOfInstanceMap: number;
-    sampleIndexOfTransform: number;
-    box3: Vector3[]; // 8 vec3
+    // sampleIndexOfInstanceMap: number; // u32
+    // sampleIndexOfTransform: number; // u32
+    // materialId: number; // u32
+    // level: number;   //u32
+    // box3: Vector3[]; //  max min  vec3[2]
+    // write down as vec4*4 now we have 6 custom value
+    min: Vector4;
+    max: Vector4;
+    custom: Vector4;
+    ssml: Vector4;
+
 }
+
 export class ClusterMaintainer {
 
     vertexBuffer = new Float32Array(268435456); // 1G = 1073741824 = 4 * 268435456
@@ -24,6 +34,11 @@ export class ClusterMaintainer {
             for (let i = 0; i < meshes.length; i++) {
                 const mesh = meshes[i];
                 // mesh.updateWorldMatrix() // already updated
+                // if(mesh.material instanceof Array){
+                // const subMeshs = mesh.getSubMeshs();
+                // for(let idx =0;idx<subMeshs.length;idx++)subMeshs[i].do stuff like follow
+                // }
+                // we only support material which is not an array now 
                 const stride = mesh.geometry.stride;
                 const meshClusterInfo = mesh.getOrGenerateClusterInformation();
                 for (let level = 0; level < meshClusterInfo.length; level++) {
@@ -34,9 +49,10 @@ export class ClusterMaintainer {
 
                     for (let count = 0; count < clusterCount; count++) {
                         clusters.push({
-                            sampleIndexOfInstanceMap: instanceCount,
-                            sampleIndexOfTransform: i,
-                            box3: mesh.geometry.box3.getCorners()
+                            ssml: new Vector4(instanceCount, i, (mesh.material as Material).id, level),
+                            min: mesh.geometry.box3.min.toVector4(),
+                            max: mesh.geometry.box3.max.toVector4(),
+                            custom: new Vector4()
                         });
                         instanceIDMap[instanceCount++] = currentOffset + count * Mesh.CLUSTER_SIZE * stride;
                     }
@@ -46,7 +62,7 @@ export class ClusterMaintainer {
                 this.oldMesh.add(mesh);
             }
         } else {
-            // add new or alter old
+            // add new or alter old...... maintain
         }
         return { clusters, vertexBuffer, outOfMemoryObjects }
     }

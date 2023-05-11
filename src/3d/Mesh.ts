@@ -113,36 +113,37 @@ export class Mesh extends Drawable {
         const clusters: Array<Float32Array> = []
         for (let level = 0; level < this.LOD.length; level++) {
             const lodMesh = this.LOD[level];
-            const { geometry, material } = lodMesh;
-            if (material instanceof Array) {
-                // todo
-            }
-            else {
-                // vertices [xyzuv xyzuv xyzuv  xyzuv xyzuv xyzuv] index [0 1 2  3 4 5] index * stride + offset
-                const vertices = geometry.vertices;
-                const lodCluster: number[] = [];
-                let triangleCounts = 0;
-                if (geometry.index) {
-                    for (let i = 0; i < geometry.index.length; i++) {
-                        for (let offset = 0; offset < geometry.stride; offset++) {
-                            lodCluster.push(vertices[i * geometry.stride + offset]); // float32
-                        }
-                        if (i % 3 === 0) {
-                            triangleCounts++;
-                        }
+            const { geometry } = lodMesh;
+            // const { geometry, material } = lodMesh;
+            // if (material instanceof Array) {
+            //     // todo
+            // }
+            // else {
+            // vertices [xyzuv xyzuv xyzuv  xyzuv xyzuv xyzuv] index [0 1 2  3 4 5] index * stride + offset
+            const vertices = geometry.vertices;
+            const lodCluster: number[] = [];
+            let triangleCounts = 0;
+            if (geometry.index) {
+                for (let i = 0; i < geometry.index.length; i++) {
+                    for (let offset = 0; offset < geometry.stride; offset++) {
+                        lodCluster.push(vertices[i * geometry.stride + offset]); // float32
                     }
-                } else {
-                    for (let i = 0; i < vertices.length; i++) {
-                        lodCluster.push(vertices[i]);
+                    if (i % 3 === 0) {
+                        triangleCounts++;
                     }
-                    triangleCounts = vertices.length / geometry.stride / 3;
                 }
-                const needVerticesCounts = (Mesh.CLUSTER_SIZE - triangleCounts % Mesh.CLUSTER_SIZE) * 3;
-                for (let i = 0; i < needVerticesCounts; i++) {
-                    for (let offset = 0; offset < geometry.stride; offset++) { lodCluster.push(0.0); }
+            } else {
+                for (let i = 0; i < vertices.length; i++) {
+                    lodCluster.push(vertices[i]);
                 }
-                clusters[level] = new Float32Array(lodCluster);
+                triangleCounts = vertices.length / geometry.stride / 3;
             }
+            const needVerticesCounts = (Mesh.CLUSTER_SIZE - triangleCounts % Mesh.CLUSTER_SIZE) * 3;
+            for (let i = 0; i < needVerticesCounts; i++) {
+                for (let offset = 0; offset < geometry.stride; offset++) { lodCluster.push(0.0); }
+            }
+            clusters[level] = new Float32Array(lodCluster);
+            // }
         }
         return clusters;
     }
@@ -157,6 +158,6 @@ export class Mesh extends Drawable {
     }
 
     estimateMaterialMemory() {
-        
+
     }
 }

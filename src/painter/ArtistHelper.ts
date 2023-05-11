@@ -1,7 +1,7 @@
 import { Object3D } from "../3d/Object3D";
 import { Hall } from "../3d/Hall";
 import { Cluster, DrawCallList } from "./drawcall/DrawCall";
-import { ClusterMaintainer } from "./maintainer/ClusterMaintainer";
+import { ClusterMaintainer, ClusterStruct } from "./maintainer/ClusterMaintainer";
 import { Mesh } from "../3d/Mesh";
 import { Camera } from "../3d/camera/Camera";
 
@@ -31,13 +31,20 @@ export class ArtistHelper {
       compute: {
         module: device.createShaderModule({
           code: `// cull shader
-          @group(0) @binding(0) var<storage, read_write> data: array<f32>;
+          struct ClusterStruct
+          {
+            ssml: vec4f,
+            min: vec4f,
+            max: vec4f,
+            custom: vec4f,
+          };
+          @group(0) @binding(0) var<storage, read_write> data: array<ClusterStruct>;
   
-        @compute @workgroup_size(1) fn computeSomething(
+        @compute @workgroup_size(256) fn computeSomething(
           @builtin(global_invocation_id) id: vec3<u32>
         ) {
           let i = id.x;
-          data[i] = data[i] * 2.0;
+          // data[i] = data[i] * 2.0;
         }
           `,
         }),
@@ -78,7 +85,9 @@ export class ArtistHelper {
     await this.cull(drawCallList);
     return drawCallList;
   }
+  getBufferFromClusterStructs(clusters: ClusterStruct[]) {
 
+  }
   // pre op
   classification() {
     // collect things should be cluster
