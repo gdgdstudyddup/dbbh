@@ -18,13 +18,15 @@ import { Camera } from "../3d/camera/Camera";
 export class ArtistHelper {
   device: GPUDevice;
   defaultDescriptor: GPUComputePipelineDescriptor;
-  cullPipeline: GPUComputePipeline;
+  defaultBindGroup: GPUBindGroup;
+  defaultCullPipeline: GPUComputePipeline;
   clusterMaintainer = new ClusterMaintainer();
   activeCamera: Camera;
+  needToResize = false; // it will be changed when clusters change.
   static clusterPool: Object3D[] = [];
   static candidates: Object3D[] = [];
   static rCandidates: Object3D[] = []; // r means remove
-  constructor(device: GPUDevice, cullPipeline?: GPUComputePipeline) {
+  constructor(device: GPUDevice, defaultCullPipeline?: GPUComputePipeline) {
     this.device = device;
     this.defaultDescriptor = {
       layout: 'auto',
@@ -35,40 +37,7 @@ export class ArtistHelper {
         entryPoint: 'computeCull',
       },
     }
-    this.cullPipeline = cullPipeline || this.device.createComputePipeline(this.defaultDescriptor);
-    const input = new Uint32Array(16); // minimal size is 64 byte
-    const output = new Uint32Array(16);
-    const count = new Uint32Array(16);
-    const inputBuffer = device.createBuffer({
-      label: 'input buffer',
-      size: input.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-    });
-
-    const outputBuffer = device.createBuffer({
-      label: 'output buffer',
-      size: output.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-    });
-    const countBuffer = device.createBuffer({
-      label: 'count buffer',
-      size: count.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-    });
-
-    // Copy our input data to that buffer
-    device.queue.writeBuffer(inputBuffer, 0, input);
-    const bindGroup = device.createBindGroup({
-      label: 'bindGroup for cull',
-      layout: this.cullPipeline.getBindGroupLayout(0),
-      entries: [
-        { binding: 0, resource: { buffer: inputBuffer } },
-        { binding: 1, resource: { buffer: outputBuffer } },
-        { binding: 2, resource: { buffer: countBuffer } },
-      ],
-    });
-
-    // init ssbo resize it into 50M or 1G  to be continue. may be can read it from json config file.
+    this.defaultCullPipeline = defaultCullPipeline || this.device.createComputePipeline(this.defaultDescriptor);
   }
   defaultCullShaderCode() {
     return `// cull shader
@@ -124,12 +93,13 @@ export class ArtistHelper {
         drawCallList.opaque.push(object);
       }
     });
-    const { clusters, vertexBuffer, outOfMemoryObjects } = this.clusterMaintainer.maintain(clusterArray);
+    const { clusters, inputBuffer, outputBuffer, vertexBuffer, outOfMemoryObjects } = this.clusterMaintainer.maintain(clusterArray);
+    //TODO!! set needToResize here.
 
     drawCallList.vertexBuffer = vertexBuffer;
     drawCallList.clusters = clusters;
     drawCallList.opaque.push(...outOfMemoryObjects);
-    await this.cull(drawCallList);
+    await this.cull(drawCallList, inputBuffer, outputBuffer);
     return drawCallList;
   }
   getBufferFromClusterStructs(clusters: ClusterStruct[]) {
@@ -152,8 +122,74 @@ export class ArtistHelper {
   }
 
   // render op
-  async cull(drawCallList: DrawCallList) {
+  async cull(drawCallList: DrawCallList, input: Float32Array, output: Float32Array) {
     // use ssbo A(clusters array) as input use ssbo B(culled and simplify cluster array, remove box3, only have information of map )  as output
+    const device = this.device;
+    const storageBufferSize = 64; // vec4 * 4 * 4
+    if ((input.length > 0 && this.defaultBindGroup === undefined) || this.needToResize) {
+      const count = new Uint32Array(16);
+      const inputBuffer = device.createBuffer({
+        label: 'input buffer',
+        size: input.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
+
+      const outputBuffer = device.createBuffer({
+        label: 'output buffer',
+        size: output.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
+      const countBuffer = device.createBuffer({
+        label: 'count buffer',
+        size: count.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
+
+      // Copy our input data to that buffer
+      device.queue.writeBuffer(inputBuffer, 0, input);
+      this.defaultBindGroup = device.createBindGroup({
+        label: 'bindGroup for cull',
+        layout: this.defaultCullPipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: inputBuffer } },
+          { binding: 1, resource: { buffer: outputBuffer } },
+          { binding: 2, resource: { buffer: countBuffer } },
+        ],
+      });
+
+      const encoder = device.createCommandEncoder({
+        label: 'culling encoder',
+      });
+      const pass = encoder.beginComputePass({
+        label: 'culling compute pass',
+      });
+      pass.setPipeline(this.defaultCullPipeline);
+      pass.setBindGroup(0, this.defaultBindGroup);
+      const tmp = input.byteLength / storageBufferSize;
+      const dispatchCount = Math.floor(tmp / 256) + 1;
+      pass.dispatchWorkgroups(dispatchCount);
+      pass.end();
+
+      const resultBuffer = device.createBuffer({
+        label: 'result buffer',
+        size: count.byteLength,
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+      });
+      // Encode a command to copy the results to a mappable buffer.
+      encoder.copyBufferToBuffer(countBuffer, 0, resultBuffer, 0, resultBuffer.size);
+
+      // Finish encoding and submit the commands
+      const commandBuffer = encoder.finish();
+      device.queue.submit([commandBuffer]);
+
+      await resultBuffer.mapAsync(GPUMapMode.READ);
+      const result = new Uint32Array(resultBuffer.getMappedRange().slice(0));
+      resultBuffer.unmap();
+
+      console.log('zero', count);
+      console.log('cull result', result);
+      drawCallList.clustersBuffer = outputBuffer;
+    }
     return [];
   }
 }

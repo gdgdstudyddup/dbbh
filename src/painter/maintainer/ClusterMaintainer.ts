@@ -17,13 +17,19 @@ export type ClusterStruct = {
 
 export class ClusterMaintainer {
 
+    // init ssbo. may be can read it from json config file.
     vertexBuffer = new Float32Array(268435456); // 1G = 1073741824 = 4 * 268435456
     uboBuffer = new Float32Array();
     clusters: ClusterStruct[] = [];
+    inputBuffer = new Float32Array();
+    outputBuffer = new Float32Array();
     oldMesh = new Set<Mesh>();
     maintain(meshes: Mesh[]) {
         const vertexBuffer = this.vertexBuffer;
         const clusters = this.clusters;
+        const tempbuffer: number[] = [];
+        let inputBuffer = this.inputBuffer;
+        let outputBuffer = this.outputBuffer;
         let currentOffset = 0;
         let instanceIDMap = [];
         let instanceCount = 0;
@@ -54,6 +60,11 @@ export class ClusterMaintainer {
                             max: mesh.geometry.box3.max.toVector4(),
                             custom: new Vector4()
                         });
+                        tempbuffer.push(instanceCount, i, (mesh.material as Material).id, level,
+                            ...mesh.geometry.box3.min.toArray(),
+                            ...mesh.geometry.box3.max.toArray(),
+                            1, 1, 1, 1
+                        )
                         instanceIDMap[instanceCount++] = currentOffset + count * Mesh.CLUSTER_SIZE * stride;
                     }
                     // update offset
@@ -61,9 +72,11 @@ export class ClusterMaintainer {
                 }
                 this.oldMesh.add(mesh);
             }
+            inputBuffer = Float32Array.from(tempbuffer);
+            outputBuffer = new Float32Array(tempbuffer.length);
         } else {
             // add new or alter old...... maintain
         }
-        return { clusters, vertexBuffer, outOfMemoryObjects }
+        return { clusters, inputBuffer, outputBuffer, vertexBuffer, outOfMemoryObjects }
     }
 }
