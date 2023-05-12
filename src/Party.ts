@@ -73,20 +73,20 @@ export class Party {
             const module = device.createShaderModule({
                 label: 'doubling compute module',
                 code: `
-                struct testStruct {
-                    test0: vec4f,
-                    test1: vec4f,
+                struct A {
+                    a:atomic<u32>
                   };
-                  @group(0) @binding(0) var<storage, read_write> data: array<testStruct>;
+                  @group(0) @binding(0) var<storage, read_write> data: A;
             
-                  @compute @workgroup_size(256) fn computeSomething(
+                  @compute @workgroup_size(1) fn computeSomething(
                     @builtin(global_invocation_id) id: vec3<u32>
                   ) {
                     let i = id.x;
+                    atomicAdd(&data.a, 10);
                     // if(i == 0){
                         // data[0].test0 = vec4f(6.0,6.0,6.0,1.0);
                     // } else  {
-                        data[i].test0 = vec4f(f32(i));
+                        // data[i].test0 = vec4f(f32(i));
                     // }
                   }
                 `,
@@ -101,7 +101,7 @@ export class Party {
                 },
             });
 
-            const input = new Float32Array([1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8]);
+            const input = new Uint32Array([0]);
             const staticStorageBufferSize = 4 * 4 + 4 * 4;
             console.log(staticStorageBufferSize, input.byteLength);
             // create a buffer on the GPU to hold our computation
@@ -152,7 +152,7 @@ export class Party {
             device.queue.submit([commandBuffer]);
 
             await resultBuffer.mapAsync(GPUMapMode.READ);
-            const result = new Float32Array(resultBuffer.getMappedRange().slice(0));
+            const result = new Uint32Array(resultBuffer.getMappedRange().slice(0));
             resultBuffer.unmap();
 
             console.log('input', input);

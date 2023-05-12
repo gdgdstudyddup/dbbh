@@ -1,6 +1,6 @@
 import { Object3D } from "../3d/Object3D";
 import { Hall } from "../3d/Hall";
-import { Cluster, DrawCallList } from "./drawcall/DrawCall";
+import { DrawCallList } from "./drawcall/DrawCall";
 import { ClusterMaintainer, ClusterStruct } from "./maintainer/ClusterMaintainer";
 import { Mesh } from "../3d/Mesh";
 import { Camera } from "../3d/camera/Camera";
@@ -30,29 +30,76 @@ export class ArtistHelper {
       layout: 'auto',
       compute: {
         module: device.createShaderModule({
-          code: `// cull shader
-          struct ClusterStruct
-          {
-            ssml: vec4f,
-            min: vec4f,
-            max: vec4f,
-            custom: vec4f,
-          };
-          @group(0) @binding(0) var<storage, read_write> data: array<ClusterStruct>;
-  
-        @compute @workgroup_size(256) fn computeSomething(
-          @builtin(global_invocation_id) id: vec3<u32>
-        ) {
-          let i = id.x;
-          // data[i] = data[i] * 2.0;
-        }
-          `,
+          code: this.defaultCullShaderCode(),
         }),
-        entryPoint: 'main',
+        entryPoint: 'computeCull',
       },
     }
-    // this.cullPipeline = cullPipeline || this.device.createComputePipeline(this.defaultDescriptor);
+    this.cullPipeline = cullPipeline || this.device.createComputePipeline(this.defaultDescriptor);
+    const input = new Uint32Array(16); // minimal size is 64 byte
+    const output = new Uint32Array(16);
+    const count = new Uint32Array(16);
+    const inputBuffer = device.createBuffer({
+      label: 'input buffer',
+      size: input.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+
+    const outputBuffer = device.createBuffer({
+      label: 'output buffer',
+      size: output.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+    const countBuffer = device.createBuffer({
+      label: 'count buffer',
+      size: count.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+
+    // Copy our input data to that buffer
+    device.queue.writeBuffer(inputBuffer, 0, input);
+    const bindGroup = device.createBindGroup({
+      label: 'bindGroup for cull',
+      layout: this.cullPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: inputBuffer } },
+        { binding: 1, resource: { buffer: outputBuffer } },
+        { binding: 2, resource: { buffer: countBuffer } },
+      ],
+    });
+
     // init ssbo resize it into 50M or 1G  to be continue. may be can read it from json config file.
+  }
+  defaultCullShaderCode() {
+    return `// cull shader
+    struct ClusterStruct
+    {
+      ssml: vec4f,
+      min: vec4f,
+      max: vec4f,
+      custom: vec4f,
+    };
+    struct CountStruct {
+      count: atomic<u32>
+    };
+    @group(0) @binding(0) var<storage, read_write> inputClusters: array<ClusterStruct>;
+    @group(0) @binding(1) var<storage, read_write> outputClusters: array<ClusterStruct>;
+    @group(0) @binding(2) var<storage, read_write> clusterCount: CountStruct;
+
+  @compute @workgroup_size(1) fn computeCull(
+    @builtin(global_invocation_id) id: vec3<u32>
+  ) {
+    let count = atomicLoad(&clusterCount.count);
+    let cluster = inputClusters[id.x];
+    let levelPass = true;
+    let frustumPass = true;
+    let ocPass = true;
+    if(frustumPass && ocPass && levelPass) {
+      outputClusters[count] = cluster;
+      atomicAdd(&clusterCount.count, 1);
+    }
+  }
+    `;
   }
   // pre op
   async process(hall: Hall) {
@@ -95,12 +142,12 @@ export class ArtistHelper {
 
   //------------------parameters may be wrong check it later.-----------------------------------------------------------
   // render op 
-  sort(clusters: Cluster[]) {
+  sort(clusters: ClusterStruct[]) {
 
   }
 
   // render op how to do it in gpu driven?????????????????????????????????????
-  async cullCluster(clusters: Cluster[]) {
+  async cullCluster(clusters: ClusterStruct[]) {
     return []; // it is a ssbo result
   }
 
