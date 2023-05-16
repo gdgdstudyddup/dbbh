@@ -7,5 +7,7 @@ export class Drawable extends Object3D {
     material: Material | Material[];
     constructor(geometry: Geometry, material: Material | Material[]) {
         super();
+        this.geometry = geometry;
+        this.material = material;
     }
 }

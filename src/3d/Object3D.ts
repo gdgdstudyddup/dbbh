@@ -31,7 +31,9 @@ export class Object3D {
     renderOrder = 0;
     userData = {};
 
-
+    constructor() {
+        this.children = [];
+    }
 
     get position() { return this._position };
     set position(v: Vector3) {
@@ -164,7 +166,7 @@ export class Object3D {
             const object = objects[i];
             if (object === this) {
 
-                console.error('THREE.Object3D.add: object can\'t be added as a child of itself.', object);
+                console.error('Object3D.add: object can\'t be added as a child of itself.', object);
                 return this;
 
             }
@@ -181,7 +183,7 @@ export class Object3D {
 
             } else {
 
-                console.error('THREE.Object3D.add: object not an instance of THREE.Object3D.', object);
+                console.error('Object3D.add: object not an instance of Object3D.', object);
 
             }
         }

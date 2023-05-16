@@ -1,3 +1,4 @@
+import { Matrix4 } from "./Matrix4";
 import { Vector3 } from "./Vector3";
 export class Box3 {
     isBox3 = true;
@@ -20,8 +21,63 @@ export class Box3 {
         return this;
 
     }
+    intersect(box) {
 
-    setFromArray(array) {
+        this.min.max(box.min);
+        this.max.min(box.max);
+
+        // ensure that if there is no overlap, the result is fully empty, not slightly empty with non-inf/+inf values that will cause subsequence intersects to erroneously return valid values.
+        if (this.isEmpty()) this.makeEmpty();
+
+        return this;
+
+    }
+
+    union(box: Box3) {
+
+        this.min.min(box.min);
+        this.max.max(box.max);
+
+        return this;
+
+    }
+
+    applyMatrix4(matrix: Matrix4) {
+
+        // transform of empty box is an empty box.
+        if (this.isEmpty()) return this;
+
+        // NOTE: I am using a binary pattern to specify all 2^3 combinations below
+        _points[0].set(this.min.x, this.min.y, this.min.z).applyMatrix4(matrix); // 000
+        _points[1].set(this.min.x, this.min.y, this.max.z).applyMatrix4(matrix); // 001
+        _points[2].set(this.min.x, this.max.y, this.min.z).applyMatrix4(matrix); // 010
+        _points[3].set(this.min.x, this.max.y, this.max.z).applyMatrix4(matrix); // 011
+        _points[4].set(this.max.x, this.min.y, this.min.z).applyMatrix4(matrix); // 100
+        _points[5].set(this.max.x, this.min.y, this.max.z).applyMatrix4(matrix); // 101
+        _points[6].set(this.max.x, this.max.y, this.min.z).applyMatrix4(matrix); // 110
+        _points[7].set(this.max.x, this.max.y, this.max.z).applyMatrix4(matrix); // 111
+
+        this.setFromPoints(_points);
+
+        return this;
+
+    }
+    clone() {
+
+        return new Box3().copy(this);
+
+    }
+
+    copy(box: Box3) {
+
+        this.min.copy(box.min);
+        this.max.copy(box.max);
+
+        return this;
+
+    }
+
+    setFromArray(array: number[]) {
 
         let minX = + Infinity;
         let minY = + Infinity;
@@ -54,7 +110,7 @@ export class Box3 {
 
     }
 
-    setFromPoints(points) {
+    setFromPoints(points: Vector3[]) {
 
         this.makeEmpty();
 
@@ -107,7 +163,7 @@ export class Box3 {
 
     }
 
-    expandByPoint(point) {
+    expandByPoint(point: Vector3) {
 
         this.min.min(point);
         this.max.max(point);
@@ -194,4 +250,14 @@ export class Box3 {
 
     }
 }
+const _points = [
+	/*@__PURE__*/ new Vector3(),
+	/*@__PURE__*/ new Vector3(),
+	/*@__PURE__*/ new Vector3(),
+	/*@__PURE__*/ new Vector3(),
+	/*@__PURE__*/ new Vector3(),
+	/*@__PURE__*/ new Vector3(),
+	/*@__PURE__*/ new Vector3(),
+	/*@__PURE__*/ new Vector3()
+];
 const _vector = /*@__PURE__*/ new Vector3();

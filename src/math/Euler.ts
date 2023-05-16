@@ -228,7 +228,7 @@ class Euler {
 
             default:
 
-                console.warn('THREE.Euler: .setFromRotationMatrix() encountered an unknown order: ' + order);
+                console.warn('Euler: .setFromRotationMatrix() encountered an unknown order: ' + order);
 
         }
 

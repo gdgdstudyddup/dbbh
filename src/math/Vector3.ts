@@ -1,4 +1,5 @@
 import * as MathUtils from './MathUtils';
+import { Vector4 } from './Vector4';
 
 class Vector3 {
 
@@ -279,7 +280,7 @@ class Vector3 {
 
     transformDirection(m) {
 
-        // input: THREE.Matrix4 affine matrix
+        // input: Matrix4 affine matrix
         // vector interpreted as a direction
 
         const x = this.x, y = this.y, z = this.z;

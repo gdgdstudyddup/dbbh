@@ -1,13 +1,9 @@
 import { Drawable } from "./Drawable";
-import { Geometry } from "./geometry/Geometry";
+import { Attribute_Info, Geometry } from "./geometry/Geometry";
 import { Material } from "./material/Material";
 
 
-export type Attribute_Info = {
-    name: string;
-    size: number;
-    type: string;
-}
+
 // Mesh means triangle stuff
 export class Mesh extends Drawable {
     static CLUSTER_SIZE = 128;
@@ -27,7 +23,6 @@ export class Mesh extends Drawable {
 
         }
      */
-    verticesInfo: Attribute_Info[] = [];
     constructor(geometry: Geometry, material: Material | Material[], cluster = true) {
         super(geometry, material);
         if (cluster) {
@@ -39,29 +34,39 @@ export class Mesh extends Drawable {
     setLODMesh(mesh: Mesh, level = 0) {
         this.LOD[level] = mesh;
     }
-
+    /**
+     * 
+     * @param name just name
+     * @param size stride length
+     * @param type data type
+     * @param newData real data
+     */
     setVertices(name: string, size: number, type: string, newData: Float32Array) {
         const data = [];
         const oldStride = this.geometry.stride;
         if (oldStride === 0) {
             this.geometry.stride = size;
             this.geometry.vertices = newData;
-            this.verticesInfo.push({
+            this.geometry.verticesInfo.push({
                 name,
                 size,
                 type
             })
         } else {
             let index = 0;
-            for (let i = 0; i < this.geometry.vertices.length; i++) {
-                data.push(this.geometry.vertices[i]);
-                if (i % oldStride === (oldStride - 1)) {
-                    data.push(newData[index++]);
+            const stride = this.geometry.stride;
+            for (let i = 0; i < this.geometry.vertices.length; i += stride) {
+                for (let idx = 0; idx < stride; idx++) {
+                    data.push(this.geometry.vertices[i + idx]);
                 }
+                for (let idx = 0; idx < size; idx++) {
+                    data.push(newData[index + idx])
+                }
+                index++;
             }
             this.geometry.stride = oldStride + size;
             this.geometry.vertices = new Float32Array(data);
-            this.verticesInfo.push({
+            this.geometry.verticesInfo.push({
                 name,
                 size,
                 type
@@ -72,26 +77,26 @@ export class Mesh extends Drawable {
 
 
     removeVertices(name: string) {
-        const oldIndex = this.verticesInfo.findIndex(v => v.name === name);
+        const oldIndex = this.geometry.verticesInfo.findIndex(v => v.name === name);
         if (oldIndex !== -1) {
-            const info = this.verticesInfo[oldIndex];
+            const info = this.geometry.verticesInfo[oldIndex];
             let stride = info.size;
             let start = 0;
             for (let i = 0; i < oldIndex; i++) {
-                start += this.verticesInfo[i].size;
+                start += this.geometry.verticesInfo[i].size;
             }
             const data = [];
             const oldStride = this.geometry.stride;
             let temp;
             for (let i = 0; i < this.geometry.vertices.length; i++) {
                 temp = i % oldStride;
-                if (!(start < temp && temp < start + stride)) {
+                if (!(start <= temp && temp < start + stride)) {
                     data.push(this.geometry.vertices[i]);
                 }
             }
             this.geometry.stride = oldStride - info.size;
             this.geometry.vertices = new Float32Array(data);
-            this.verticesInfo.splice(oldIndex, 1);
+            this.geometry.verticesInfo.splice(oldIndex, 1);
         }
     }
 
@@ -105,7 +110,7 @@ export class Mesh extends Drawable {
 
     getOrGenerateClusterInformation() {
         if (this.clusters) { return this.clusters; }
-        this.generateClusterInformation();
+        this.clusters = this.generateClusterInformation();
         return this.clusters;
     }
 

@@ -173,9 +173,19 @@ export class Party {
                 }
             }
         }
-        requestAnimationFrame(this.partying.bind(this));
+        // requestAnimationFrame(this.partying.bind(this));
     }
 
+    addHall(hall: Hall) {
+        this.halls.push(hall);
+    }
+    
+    removeHall(hall: Hall) {
+        const index = this.halls.findIndex(h => h === hall);
+        if (index !== -1) {
+            this.halls.splice(index, 1);
+        }
+    }
     suspend() {
         this.isSuspend = true;
     }

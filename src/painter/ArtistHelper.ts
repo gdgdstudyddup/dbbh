@@ -85,8 +85,9 @@ export class ArtistHelper {
     drawCallList.transparent = [];
     drawCallList.opaque = [];
     const ocArray: Mesh[] = [];
-    const clusterArray: Mesh[] = []
+    const clusterArray: Mesh[] = [];
     hall.traverse((object) => {
+      if (object instanceof Hall) return;
       if (object.tag === 'cluster') {
         if (object.isOCobject) {
           ocArray.push(object);
@@ -100,12 +101,12 @@ export class ArtistHelper {
         drawCallList.opaque.push(object);
       }
     });
-    const { clusters, inputBuffer, outputBuffer, vertexBuffer, outOfMemoryObjects } = this.clusterMaintainer.maintain(clusterArray);
+    const { instanceIDMap, clusters, inputBuffer, outputBuffer, vertexBuffer, outOfMemoryObjects } = this.clusterMaintainer.maintain(clusterArray);
     //TODO!! set needToResize here.
-
     drawCallList.vertexBuffer = vertexBuffer;
     drawCallList.clusters = clusters;
     drawCallList.opaque.push(...outOfMemoryObjects);
+    console.log(instanceIDMap, drawCallList, clusterArray);
     await this.cull(drawCallList, inputBuffer, outputBuffer, artist);
     return drawCallList;
   }

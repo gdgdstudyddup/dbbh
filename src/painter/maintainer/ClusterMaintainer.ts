@@ -1,5 +1,6 @@
 import { Mesh } from "../../3d/Mesh";
 import { Material } from "../../DBBH";
+import { Vector4 } from "../../math/Vector4";
 
 export type ClusterStruct = {
     // sampleIndexOfInstanceMap: number; // u32
@@ -31,8 +32,8 @@ export class ClusterMaintainer {
         let inputBuffer = this.inputBuffer;
         let outputBuffer = this.outputBuffer;
         let currentOffset = 0;
-        let instanceIDMap = [];
         let instanceCount = 0;
+        let instanceIDMap = [];
         let outOfMemoryObjects = []; // this objects will use normal way to draw.
         const isFirst = clusters.length === 0;
         // ********* todo check out of memory *********
@@ -40,6 +41,7 @@ export class ClusterMaintainer {
             for (let i = 0; i < meshes.length; i++) {
                 const mesh = meshes[i];
                 // mesh.updateWorldMatrix() // already updated
+                mesh.geometry.computeWorldBox(mesh.worldMatrix);
                 // if(mesh.material instanceof Array){
                 // const subMeshs = mesh.getSubMeshs();
                 // for(let idx =0;idx<subMeshs.length;idx++)subMeshs[i].do stuff like follow
@@ -52,7 +54,7 @@ export class ClusterMaintainer {
                     const vertices = meshClusterInfo[level];
                     vertexBuffer.set(vertices, currentOffset);
                     // record cluster info
-                    const clusterCount = vertices.length / stride / Mesh.CLUSTER_SIZE;
+                    const clusterCount = vertices.length / stride / 3 / Mesh.CLUSTER_SIZE;
                     mesh.clusterInfo[level] = [instanceCount, instanceCount + clusterCount];
 
                     /*
@@ -66,13 +68,13 @@ export class ClusterMaintainer {
                     for (let count = 0; count < clusterCount; count++) {
                         clusters.push({
                             ssml: new Vector4(instanceCount, i, (mesh.material as Material).id, level),
-                            min: mesh.geometry.box3.min.toVector4(),
-                            max: mesh.geometry.box3.max.toVector4(),
+                            min: mesh.geometry.wBox3.min.toVector4(),
+                            max: mesh.geometry.wBox3.max.toVector4(),
                             custom: new Vector4()
                         });
                         tempBuffer.push(instanceCount, i, (mesh.material as Material).id, level,
-                            ...mesh.geometry.box3.min.toVector4().toArray(),
-                            ...mesh.geometry.box3.max.toVector4().toArray(),
+                            ...mesh.geometry.wBox3.min.toVector4().toArray(),
+                            ...mesh.geometry.wBox3.max.toVector4().toArray(),
                             1, 1, 1, 1
                         )
                         instanceIDMap[instanceCount++] = currentOffset + count * Mesh.CLUSTER_SIZE * stride;
@@ -88,7 +90,7 @@ export class ClusterMaintainer {
         } else {
             // add new or alter old...... maintain
         }
-        return { clusters, inputBuffer, outputBuffer, vertexBuffer, outOfMemoryObjects }
+        return { instanceIDMap, clusters, inputBuffer, outputBuffer, vertexBuffer, outOfMemoryObjects }
 
     }
 }
