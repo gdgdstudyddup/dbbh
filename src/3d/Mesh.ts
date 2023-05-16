@@ -12,6 +12,7 @@ export type Attribute_Info = {
 export class Mesh extends Drawable {
     static CLUSTER_SIZE = 128;
     LOD: Mesh[] = [];
+    clusterInfo: Array<Array<number>> = [[]];
     clusters: Array<Float32Array>; // each level has it own cluster
     /**
      * {

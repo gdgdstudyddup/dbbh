@@ -7,6 +7,7 @@ import { Vector3 } from "../math/Vector3";
 export class Object3D {
     static DEFAULT_UP = new Vector3(0, 0, 1);
     isObject3D = true;
+    isOCobject = false;
     uuid = generateUUID();
     tag: string;
     parent: Object3D;

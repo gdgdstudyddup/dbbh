@@ -19,7 +19,8 @@ dbbh.party.start(camera) -> artist.work()->callHelper()-------------------->
 - [💬 Blog ]()
 
 ## Setup
-# 🔨 Start installing dependencies, building, and running at localhost:8080
+```
+🔨 Start installing dependencies, building, and running at localhost:8080
 npm start
 ```
 📂👶🕚🔺👁️⚖️📦📖📄➕🌟📇

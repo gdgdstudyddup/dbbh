@@ -4,6 +4,7 @@ import { DrawCallList } from "./drawcall/DrawCall";
 import { ClusterMaintainer, ClusterStruct } from "./maintainer/ClusterMaintainer";
 import { Mesh } from "../3d/Mesh";
 import { Camera } from "../3d/camera/Camera";
+import { Artist } from "./Artist";
 
 /* 
     dynamic object which has cluster Tag in some case, it will be observed some frames then it will be put into cluster objects. 
@@ -71,7 +72,7 @@ export class ArtistHelper {
     `;
   }
   // pre op
-  async process(hall: Hall) {
+  async process(hall: Hall, artist: Artist) {
     this.activeCamera = hall.mainCamera;
     // now we just do it  its update part
     hall.updateWorldMatrix(); // TODO it should be changed to  update object only who has been modify some stuff such as position.
@@ -83,10 +84,16 @@ export class ArtistHelper {
     const drawCallList = new DrawCallList();
     drawCallList.transparent = [];
     drawCallList.opaque = [];
+    const ocArray: Mesh[] = [];
     const clusterArray: Mesh[] = []
     hall.traverse((object) => {
       if (object.tag === 'cluster') {
-        clusterArray.push(object);
+        if (object.isOCobject) {
+          ocArray.push(object);
+        }
+        else {
+          clusterArray.push(object);
+        }
       } else if (object.material.transparent) {
         drawCallList.transparent.push(object)
       } else {
@@ -99,7 +106,7 @@ export class ArtistHelper {
     drawCallList.vertexBuffer = vertexBuffer;
     drawCallList.clusters = clusters;
     drawCallList.opaque.push(...outOfMemoryObjects);
-    await this.cull(drawCallList, inputBuffer, outputBuffer);
+    await this.cull(drawCallList, inputBuffer, outputBuffer, artist);
     return drawCallList;
   }
   getBufferFromClusterStructs(clusters: ClusterStruct[]) {
@@ -121,8 +128,8 @@ export class ArtistHelper {
     return []; // it is a ssbo result
   }
 
-  // render op
-  async cull(drawCallList: DrawCallList, input: Float32Array, output: Float32Array) {
+  // this function may be re-design it will be involved with draw-option?
+  async cull(drawCallList: DrawCallList, input: Float32Array, output: Float32Array, artist: Artist) {
     // use ssbo A(clusters array) as input use ssbo B(culled and simplify cluster array, remove box3, only have information of map )  as output
     const device = this.device;
     const storageBufferSize = 64; // vec4 * 4 * 4
