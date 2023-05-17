@@ -8,7 +8,7 @@ import { Material } from "./material/Material";
 export class Mesh extends Drawable {
     static CLUSTER_SIZE = 128;
     LOD: Mesh[] = [];
-    clusterInfo: Array<Array<number>> = [[]];
+    clusterInfo: Array<number> = [0, 0, 0, 0, 0, 0, 0, 0];
     clusters: Array<Float32Array>; // each level has it own cluster
     /**
      * {

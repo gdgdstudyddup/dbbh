@@ -22,22 +22,28 @@ export class ClusterMaintainer {
     vertexBuffer = new Float32Array(268435456); // 1G = 1073741824 = 4 * 268435456
     uboBuffer = new Float32Array();
     clusters: ClusterStruct[] = [];
+    meshBuffer = new Float32Array();
+    meshClusterOffset: number[] = [];
     inputBuffer = new Float32Array();
-    outputBuffer = new Float32Array();
+    cullPassedBuffer = new Float32Array();
+    cullFailedBuffer = new Float32Array(); // it is mesh, its not cluster 
     oldMesh = new Set<Mesh>();
     maintain(meshes: Mesh[]) {
         const vertexBuffer = this.vertexBuffer;
         const clusters = this.clusters;
         const tempBuffer: number[] = [];
         let inputBuffer = this.inputBuffer;
-        let outputBuffer = this.outputBuffer;
+        let cullPassedBuffer = this.cullPassedBuffer;
+        let meshBuffer = [];
         let currentOffset = 0;
         let instanceCount = 0;
-        let instanceIDMap = [];
+        let instanceIDMap: number[] = [];
         let outOfMemoryObjects = []; // this objects will use normal way to draw.
         const isFirst = clusters.length === 0;
         // ********* todo check out of memory *********
         if (isFirst) {
+            //stride = 4 * 2 + 4 + 4  4level*2 + bbx min + bbx max
+            meshBuffer = new Array(16 * meshes.length);
             for (let i = 0; i < meshes.length; i++) {
                 const mesh = meshes[i];
                 // mesh.updateWorldMatrix() // already updated
@@ -49,14 +55,25 @@ export class ClusterMaintainer {
                 // we only support material which is not an array now 
                 const stride = mesh.geometry.stride;
                 const meshClusterInfo = mesh.getOrGenerateClusterInformation();
+                // we just assume every mesh have same lod levels 4. need to optimize in the future. because they needn't have same number of lod levels.
+                meshBuffer[i * 16 + 8] = mesh.geometry.wBox3.min.x;
+                meshBuffer[i * 16 + 9] = mesh.geometry.wBox3.min.y;
+                meshBuffer[i * 16 + 10] = mesh.geometry.wBox3.min.z;
+                meshBuffer[i * 16 + 11] = 1
+                meshBuffer[i * 16 + 12] = mesh.geometry.wBox3.max.x;
+                meshBuffer[i * 16 + 13] = mesh.geometry.wBox3.max.y;
+                meshBuffer[i * 16 + 14] = mesh.geometry.wBox3.max.z;
+                meshBuffer[i * 16 + 15] = 1
 
                 for (let level = 0; level < meshClusterInfo.length; level++) {
                     const vertices = meshClusterInfo[level];
                     vertexBuffer.set(vertices, currentOffset);
                     // record cluster info
                     const clusterCount = vertices.length / stride / 3 / Mesh.CLUSTER_SIZE;
-                    mesh.clusterInfo[level] = [instanceCount, instanceCount + clusterCount];
-
+                    mesh.clusterInfo[level * 2] = instanceCount;
+                    mesh.clusterInfo[level * 2 + 1] = instanceCount + clusterCount;
+                    meshBuffer[i * 16 + level * 2] = instanceCount
+                    meshBuffer[i * 16 + level * 2 + 1] = instanceCount + clusterCount;
                     /*
                     Mesh{
                         clusterInfo0:[instanceCount, instanceCount + clusterCount],
@@ -86,11 +103,13 @@ export class ClusterMaintainer {
                 this.oldMesh.add(mesh);
             }
             inputBuffer = Float32Array.from(tempBuffer);
-            outputBuffer = new Float32Array(tempBuffer.length);
+            cullPassedBuffer = new Float32Array(tempBuffer.length);
+            this.meshBuffer = Float32Array.from(meshBuffer);
+            this.cullFailedBuffer = Float32Array.from(meshBuffer);
         } else {
             // add new or alter old...... maintain
         }
-        return { instanceIDMap, clusters, inputBuffer, outputBuffer, vertexBuffer, outOfMemoryObjects }
+        return { instanceIDMap, clusters, meshBuffer: this.meshBuffer, inputBuffer, cullPassedBuffer, cullFailedBuffer:this.cullFailedBuffer, vertexBuffer, outOfMemoryObjects }
 
     }
 }

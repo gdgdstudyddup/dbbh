@@ -49,24 +49,44 @@ export class ArtistHelper {
       max: vec4f,
       custom: vec4f,
     };
+    struct MeshBufferStruct
+    {
+      lod01:vec4f,
+      lod23:vec4f,
+      min:vec4f,
+      max:vec4f,
+    };
     struct CountStruct {
-      count: atomic<u32>
+      count: atomic<u32>,
+      failedMeshCount: atomic<u32>,
     };
     @group(0) @binding(0) var<storage, read_write> inputClusters: array<ClusterStruct>;
-    @group(0) @binding(1) var<storage, read_write> outputClusters: array<ClusterStruct>;
-    @group(0) @binding(2) var<storage, read_write> clusterCount: CountStruct;
+    @group(0) @binding(1) var<storage, read_write> meshBuffer: array<MeshBufferStruct>;
+    @group(0) @binding(2) var<storage, read_write> passClusters: array<ClusterStruct>;
+    @group(0) @binding(3) var<storage, read_write> failMesh: array<MeshBufferStruct>;
+    @group(0) @binding(4) var<storage, read_write> allCount: CountStruct;
 
   @compute @workgroup_size(1) fn computeCull(
     @builtin(global_invocation_id) id: vec3<u32>
   ) {
-    let count = atomicLoad(&clusterCount.count);
-    let cluster = inputClusters[id.x];
     let levelPass = true;
     let frustumPass = true;
     let ocPass = true;
+    let mesh = meshBuffer[id.x];
     if(frustumPass && ocPass && levelPass) {
-      outputClusters[count] = cluster;
-      atomicAdd(&clusterCount.count, 1);
+      // lets use lod0 directly for demo.
+      let pCount = atomicLoad(&allCount.count);
+      let start = u32(mesh.lod01.x);
+      let end = u32(mesh.lod01.y);
+      let size = end - start;
+      for(var i = start; i < end; i++) {
+        passClusters[pCount + i - start] = inputClusters[i];
+      }
+      atomicAdd(&allCount.count, size);
+    } else {
+      let fCount = atomicLoad(&allCount.failedMeshCount);
+      failMesh[fCount] = mesh;
+      atomicAdd(&allCount.failedMeshCount, 1);
     }
   }
     `;
@@ -101,13 +121,20 @@ export class ArtistHelper {
         drawCallList.opaque.push(object);
       }
     });
-    const { instanceIDMap, clusters, inputBuffer, outputBuffer, vertexBuffer, outOfMemoryObjects } = this.clusterMaintainer.maintain(clusterArray);
+    const { instanceIDMap, 
+      meshBuffer, 
+      clusters, 
+      inputBuffer, 
+      cullPassedBuffer,  // its clusters.
+      cullFailedBuffer, // its meshes.
+      vertexBuffer, 
+      outOfMemoryObjects } = this.clusterMaintainer.maintain(clusterArray);
     //TODO!! set needToResize here.
     drawCallList.vertexBuffer = vertexBuffer;
     drawCallList.clusters = clusters;
     drawCallList.opaque.push(...outOfMemoryObjects);
-    console.log(instanceIDMap, drawCallList, clusterArray);
-    await this.cull(drawCallList, inputBuffer, outputBuffer, artist);
+    console.log(instanceIDMap, meshBuffer, drawCallList, clusterArray);
+    await this.cull(drawCallList, meshBuffer, inputBuffer, cullPassedBuffer, cullFailedBuffer, artist);
     return drawCallList;
   }
   getBufferFromClusterStructs(clusters: ClusterStruct[]) {
@@ -130,23 +157,34 @@ export class ArtistHelper {
   }
 
   // this function may be re-design it will be involved with draw-option?
-  async cull(drawCallList: DrawCallList, input: Float32Array, output: Float32Array, artist: Artist) {
+  async cull(drawCallList: DrawCallList, meshBuf: Float32Array, input: Float32Array, cullPass: Float32Array, cullFail: Float32Array, artist: Artist) {
     // use ssbo A(clusters array) as input use ssbo B(culled and simplify cluster array, remove box3, only have information of map )  as output
     const device = this.device;
     const storageBufferSize = 64; // vec4 * 4 * 4
     if ((input.length > 0 && this.defaultBindGroup === undefined) || this.needToResize) {
-      const count = new Uint32Array(16);
+      const count = new Uint32Array(2);
       const inputBuffer = device.createBuffer({
         label: 'input buffer',
         size: input.byteLength,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
       });
-
-      const outputBuffer = device.createBuffer({
-        label: 'output buffer',
-        size: output.byteLength,
+      const meshBuffer = device.createBuffer({
+        label: 'mesh buffer',
+        size: meshBuf.byteLength,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
       });
+      const passBuffer = device.createBuffer({
+        label: 'pass cluster buffer',
+        size: cullPass.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
+
+      const failBuffer = device.createBuffer({
+        label: 'failed mesh buffer',
+        size: cullFail.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
+
       const countBuffer = device.createBuffer({
         label: 'count buffer',
         size: count.byteLength,
@@ -155,13 +193,16 @@ export class ArtistHelper {
 
       // Copy our input data to that buffer
       device.queue.writeBuffer(inputBuffer, 0, input);
+      device.queue.writeBuffer(meshBuffer, 0, meshBuf);
       this.defaultBindGroup = device.createBindGroup({
         label: 'bindGroup for cull',
         layout: this.defaultCullPipeline.getBindGroupLayout(0),
         entries: [
           { binding: 0, resource: { buffer: inputBuffer } },
-          { binding: 1, resource: { buffer: outputBuffer } },
-          { binding: 2, resource: { buffer: countBuffer } },
+          { binding: 1, resource: { buffer: meshBuffer } },
+          { binding: 2, resource: { buffer: passBuffer } },
+          { binding: 3, resource: { buffer: failBuffer } },
+          { binding: 4, resource: { buffer: countBuffer } },
         ],
       });
 
@@ -173,8 +214,7 @@ export class ArtistHelper {
       });
       pass.setPipeline(this.defaultCullPipeline);
       pass.setBindGroup(0, this.defaultBindGroup);
-      const tmp = input.byteLength / storageBufferSize;
-      const dispatchCount = Math.floor(tmp / 256) + 1;
+      const dispatchCount = meshBuf.byteLength / storageBufferSize;
       pass.dispatchWorkgroups(dispatchCount);
       pass.end();
 
@@ -195,9 +235,10 @@ export class ArtistHelper {
       resultBuffer.unmap();
 
       console.log('zero', count);
-      console.log('cull result', result);
-      drawCallList.clustersBuffer = outputBuffer;
+      console.log('cull result', input, result);
+      drawCallList.clustersBuffer = passBuffer;
     }
+    // draw pass clusters get a depth map and cull the failed meshes. do it again. over
     return [];
   }
 }
