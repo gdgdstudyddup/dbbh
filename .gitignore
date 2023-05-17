@@ -32,6 +32,8 @@ ts-node
 *.sh
 !system.min.js
 
+!thridparty/
+
 # Editors
 .vscode
 .markdownlint.json

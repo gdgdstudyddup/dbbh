@@ -1,6 +1,6 @@
 import Renderer from './renderer';
 import * as DBBH from './DBBH';
-import * as THREE from './thirdparty/three.min.js'
+import * as THREE from './thirdparty/three.module.min';
 import { PerspectiveCamera } from './3d/camera/Camera';
 
 // const canvas = document.getElementById('gfx') as HTMLCanvasElement;
