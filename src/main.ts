@@ -1,30 +1,13 @@
-import Renderer from './renderer';
 import * as DBBH from './DBBH';
-import * as THREE from 'three';
 import { PerspectiveCamera } from './3d/camera/Camera';
+import { SphereGeometryInfo } from './third-party/sphereGeometryGenerator';
 
 // const canvas = document.getElementById('gfx') as HTMLCanvasElement;
 // canvas.width = canvas.height = 640;
 // const renderer = new Renderer(canvas);
 // renderer.start();
 
-const sphere = new THREE.SphereGeometry(10);
-const position = sphere.attributes.position.array;
-const normal = sphere.attributes.normal.array;
-const uv = sphere.attributes.uv.array;
-const index = sphere.index.array;
-for (let i = 0; i < position.length; i += 3) {
-    let temp;
-    temp = position[i + 1];
-    position[i + 1] = position[i + 2];
-    position[i + 2] = temp;
-
-
-    temp = normal[i + 1];
-    normal[i + 1] = normal[i + 2];
-    normal[i + 2] = temp;
-
-}
+const { position, normal, uv, index } = SphereGeometryInfo(10);
 
 const geometry = new DBBH.Geometry();
 const material = new DBBH.Material();
