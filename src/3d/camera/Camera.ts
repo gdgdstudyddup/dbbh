@@ -4,6 +4,11 @@ import { Object3D } from "../Object3D";
 
 export class Camera extends Object3D { // post precess may be set on camera.
     modelViewMatrix:Matrix4;
+    useOutline = false;
+    useBloom = false;
+    useTaa = true;
+    useSSAO = false;
+    useSSR = false;
 }
 
 export class PerspectiveCamera extends Camera {

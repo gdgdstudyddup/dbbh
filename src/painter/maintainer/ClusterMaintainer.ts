@@ -15,16 +15,42 @@ export type ClusterStruct = {
     ssml: Vector4;
 
 }
-
+/**
+ * InputBuffer Clusters  there need a anotherBuffer 
+ * globalCluserIndex transformMatrixInformation,materialId, level
+ * min Box3.toVec4
+ * max Box3.toVec4
+ * custom vec4
+ * 
+ * ReTestBuffer used to hold re-culling-test results
+ * globalCluserIndex transformMatrixInformation,materialId, level
+ * min Box3.toVec4
+ * max Box3.toVec4
+ * custom vec4
+ * 
+ * CullPassedBuffer same size as inputBuffer 
+ * its constructed by the clusters which pass the culling test.
+ *
+ * 
+ * MeshBuffer f32*16
+ * lod0 x y[clusterIndexStart clusterIndexEnd]  z w lod1 [clusterIndexStart clusterIndexEnd]
+ * lod2 x y[clusterIndexStart clusterIndexEnd]  z w lod3 [clusterIndexStart clusterIndexEnd]
+ * min Box3.toVec4
+ * max Box3.toVec4
+ * 
+ * CullFailedBuffer
+ * its constructed by the mesh which fail the culling test, it will re-culling-test later.
+ */
 export class ClusterMaintainer {
 
     // init ssbo. may be can read it from json config file.
     vertexBuffer = new Float32Array(268435456); // 1G = 1073741824 = 4 * 268435456
     uboBuffer = new Float32Array();
     clusters: ClusterStruct[] = [];
-    meshBuffer = new Float32Array();
+    meshBuffer = new Float32Array(); // 
     meshClusterOffset: number[] = [];
     inputBuffer = new Float32Array();
+    reTestBuffer = new Float32Array();
     cullPassedBuffer = new Float32Array();
     cullFailedBuffer = new Float32Array(); // it is mesh, its not cluster 
     oldMesh = new Set<Mesh>();
@@ -40,7 +66,7 @@ export class ClusterMaintainer {
         let instanceIDMap: number[] = [];
         let outOfMemoryObjects = []; // this objects will use normal way to draw.
         const isFirst = clusters.length === 0;
-        // ********* todo check out of memory *********
+        // ********* TODO check out of memory *********
         if (isFirst) {
             //stride = 4 * 2 + 4 + 4  4level*2 + bbx min + bbx max
             meshBuffer = new Array(16 * meshes.length);
@@ -72,7 +98,7 @@ export class ClusterMaintainer {
                     const clusterCount = vertices.length / stride / 3 / Mesh.CLUSTER_SIZE;
                     mesh.clusterInfo[level * 2] = instanceCount;
                     mesh.clusterInfo[level * 2 + 1] = instanceCount + clusterCount;
-                    meshBuffer[i * 16 + level * 2] = instanceCount
+                    meshBuffer[i * 16 + level * 2] = instanceCount; // cluster index;
                     meshBuffer[i * 16 + level * 2 + 1] = instanceCount + clusterCount;
                     /*
                     Mesh{
@@ -104,12 +130,13 @@ export class ClusterMaintainer {
             }
             inputBuffer = Float32Array.from(tempBuffer);
             cullPassedBuffer = new Float32Array(tempBuffer.length);
+            this.reTestBuffer = new Float32Array(tempBuffer.length);
             this.meshBuffer = Float32Array.from(meshBuffer);
             this.cullFailedBuffer = Float32Array.from(meshBuffer);
         } else {
             // add new or alter old...... maintain
         }
-        return { instanceIDMap, clusters, meshBuffer: this.meshBuffer, inputBuffer, cullPassedBuffer, cullFailedBuffer:this.cullFailedBuffer, vertexBuffer, outOfMemoryObjects }
+        return { instanceIDMap, clusters, meshBuffer: this.meshBuffer, inputBuffer, reTestBuffer:this.reTestBuffer,cullPassedBuffer, cullFailedBuffer: this.cullFailedBuffer, vertexBuffer, outOfMemoryObjects }
 
     }
 }

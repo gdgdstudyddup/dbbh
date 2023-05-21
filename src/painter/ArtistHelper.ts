@@ -121,20 +121,24 @@ export class ArtistHelper {
         drawCallList.opaque.push(object);
       }
     });
-    const { instanceIDMap, 
-      meshBuffer, 
-      clusters, 
-      inputBuffer, 
+    const { instanceIDMap,
+      meshBuffer,
+      clusters,
+      inputBuffer,
+      reTestBuffer,
       cullPassedBuffer,  // its clusters.
       cullFailedBuffer, // its meshes.
-      vertexBuffer, 
+      vertexBuffer,
       outOfMemoryObjects } = this.clusterMaintainer.maintain(clusterArray);
     //TODO!! set needToResize here.
     drawCallList.vertexBuffer = vertexBuffer;
     drawCallList.clusters = clusters;
     drawCallList.opaque.push(...outOfMemoryObjects);
     console.log(instanceIDMap, meshBuffer, drawCallList, clusterArray);
-    await this.cull(drawCallList, meshBuffer, inputBuffer, cullPassedBuffer, cullFailedBuffer, artist);
+    // we need to beginpass so we need desc..emmmm 
+    // this function contains 4 steps [cull draw cull draw]', it will generate a depth map for oc culling of normal objects 
+    await this.paintClustersWithCullingLogic(drawCallList, meshBuffer, inputBuffer, reTestBuffer, cullPassedBuffer, cullFailedBuffer, artist);
+    // normal object should cull-test one time only, because the occlusion object that we using is cluster. 
     return drawCallList;
   }
   getBufferFromClusterStructs(clusters: ClusterStruct[]) {
@@ -157,7 +161,7 @@ export class ArtistHelper {
   }
 
   // this function may be re-design it will be involved with draw-option?
-  async cull(drawCallList: DrawCallList, meshBuf: Float32Array, input: Float32Array, cullPass: Float32Array, cullFail: Float32Array, artist: Artist) {
+  async paintClustersWithCullingLogic(drawCallList: DrawCallList, meshBuf: Float32Array, input: Float32Array, reTestBuffer: Float32Array, cullPass: Float32Array, cullFail: Float32Array, artist: Artist) {
     // use ssbo A(clusters array) as input use ssbo B(culled and simplify cluster array, remove box3, only have information of map )  as output
     const device = this.device;
     const storageBufferSize = 64; // vec4 * 4 * 4
