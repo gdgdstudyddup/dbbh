@@ -3,8 +3,9 @@ import { Hall } from "../3d/Hall";
 import { DrawCallList } from "./drawcall/DrawCall";
 import { ClusterMaintainer, ClusterStruct } from "./maintainer/ClusterMaintainer";
 import { Mesh } from "../3d/Mesh";
-import { Camera } from "../3d/camera/Camera";
+import { Camera, PerspectiveCamera } from "../3d/camera/Camera";
 import { Artist } from "./Artist";
+import { Matrix4 } from "../math/Matrix4";
 
 /* 
     dynamic object which has cluster Tag in some case, it will be observed some frames then it will be put into cluster objects. 
@@ -24,6 +25,14 @@ export class ArtistHelper {
   clusterMaintainer = new ClusterMaintainer();
   activeCamera: Camera;
   needToResize = false; // it will be changed when clusters change.
+
+  inputBuffer: GPUBuffer;
+  meshBuffer: GPUBuffer;
+  passBuffer: GPUBuffer;
+  failBuffer: GPUBuffer;
+  countBuffer: GPUBuffer;
+  resultBuffer: GPUBuffer; // record number of pass clusters and number of fail meshes
+
   static clusterPool: Object3D[] = [];
   static candidates: Object3D[] = [];
   static rCandidates: Object3D[] = []; // r means remove
@@ -129,15 +138,52 @@ export class ArtistHelper {
       cullPassedBuffer,  // its clusters.
       cullFailedBuffer, // its meshes.
       vertexBuffer,
+      uboBuffer,
       outOfMemoryObjects } = this.clusterMaintainer.maintain(clusterArray);
     //TODO!! set needToResize here.
+
+    const cameraUniformBuffer = this.device.createBuffer({
+      size: 4 * 16,
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    const viewMatrix = this.activeCamera.worldMatrixInverse;
+    const viewProjMatrix = new Matrix4().multiplyMatrices((this.activeCamera as PerspectiveCamera).projectionMatrix, viewMatrix);
+    const cameraMatrixData = new Float32Array(viewProjMatrix.elements);
+    this.device.queue.writeBuffer(
+      cameraUniformBuffer,
+      0,
+      cameraMatrixData.buffer,
+      cameraMatrixData.byteOffset,
+      cameraMatrixData.byteLength
+    );
+
+    const modelUniformBuffer = this.device.createBuffer({
+      size: 4 * 16 * clusterArray.length, // two 4x4 matrix
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+    const modelData = new Float32Array(uboBuffer);
+    this.device.queue.writeBuffer(
+      modelUniformBuffer,
+      0,
+      modelData.buffer,
+      modelData.byteOffset,
+      modelData.byteLength
+    );
+
+    const vertexGPUBuffer = this.device.createBuffer({
+      label: 'vertex buffer',
+      size: vertexBuffer.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+    this.device.queue.writeBuffer(vertexGPUBuffer, 0, vertexBuffer);
     drawCallList.vertexBuffer = vertexBuffer;
+    drawCallList.vertexGPUBuffer = vertexGPUBuffer;
     drawCallList.clusters = clusters;
     drawCallList.opaque.push(...outOfMemoryObjects);
     console.log(instanceIDMap, meshBuffer, drawCallList, clusterArray);
     // we need to beginpass so we need desc..emmmm 
     // this function contains 4 steps [cull draw cull draw]', it will generate a depth map for oc culling of normal objects 
-    await this.paintClustersWithCullingLogic(drawCallList, meshBuffer, inputBuffer, reTestBuffer, cullPassedBuffer, cullFailedBuffer, artist);
+    await this.writeToGBuffer(drawCallList, meshBuffer, inputBuffer, reTestBuffer, cullPassedBuffer, cullFailedBuffer, artist);
     // normal object should cull-test one time only, because the occlusion object that we using is cluster. 
     return drawCallList;
   }
@@ -161,7 +207,7 @@ export class ArtistHelper {
   }
 
   // this function may be re-design it will be involved with draw-option?
-  async paintClustersWithCullingLogic(drawCallList: DrawCallList, meshBuf: Float32Array, input: Float32Array, reTestBuffer: Float32Array, cullPass: Float32Array, cullFail: Float32Array, artist: Artist) {
+  async writeToGBuffer(drawCallList: DrawCallList, meshBuf: Float32Array, input: Float32Array, reTestBuffer: Float32Array, cullPass: Float32Array, cullFail: Float32Array, artist: Artist) {
     // use ssbo A(clusters array) as input use ssbo B(culled and simplify cluster array, remove box3, only have information of map )  as output
     const device = this.device;
     const storageBufferSize = 64; // vec4 * 4 * 4
@@ -195,9 +241,21 @@ export class ArtistHelper {
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
       });
 
+      const resultBuffer = device.createBuffer({
+        label: 'result buffer',
+        size: count.byteLength,
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+      });
       // Copy our input data to that buffer
       device.queue.writeBuffer(inputBuffer, 0, input);
       device.queue.writeBuffer(meshBuffer, 0, meshBuf);
+      this.inputBuffer = inputBuffer;
+      this.meshBuffer = meshBuffer;
+      this.passBuffer = passBuffer;
+      this.failBuffer = failBuffer;
+      this.countBuffer = countBuffer;
+      this.resultBuffer = resultBuffer;
+
       this.defaultBindGroup = device.createBindGroup({
         label: 'bindGroup for cull',
         layout: this.defaultCullPipeline.getBindGroupLayout(0),
@@ -209,7 +267,10 @@ export class ArtistHelper {
           { binding: 4, resource: { buffer: countBuffer } },
         ],
       });
+    }
 
+    if (input.length > 0) {
+      device.queue.writeBuffer(this.countBuffer, 0, new Float32Array([0, 0]));
       const encoder = device.createCommandEncoder({
         label: 'culling encoder',
       });
@@ -222,25 +283,33 @@ export class ArtistHelper {
       pass.dispatchWorkgroups(dispatchCount);
       pass.end();
 
-      const resultBuffer = device.createBuffer({
-        label: 'result buffer',
-        size: count.byteLength,
-        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-      });
-      // Encode a command to copy the results to a mappable buffer.
-      encoder.copyBufferToBuffer(countBuffer, 0, resultBuffer, 0, resultBuffer.size);
+      drawCallList.clustersGPUBuffer = this.passBuffer;
 
-      // Finish encoding and submit the commands
+      encoder.copyBufferToBuffer(this.countBuffer, 0, this.resultBuffer, 0, this.resultBuffer.size);
       const commandBuffer = encoder.finish();
       device.queue.submit([commandBuffer]);
-
-      await resultBuffer.mapAsync(GPUMapMode.READ);
-      const result = new Uint32Array(resultBuffer.getMappedRange().slice(0));
-      resultBuffer.unmap();
-
-      console.log('zero', count);
-      console.log('cull result', input, result);
-      drawCallList.clustersBuffer = passBuffer;
+      await this.resultBuffer.mapAsync(GPUMapMode.READ);
+      const result = new Uint32Array(this.resultBuffer.getMappedRange().slice(0));
+      this.resultBuffer.unmap();
+      console.log(result[0], result[1]); // 16 0
+      // draw first time
+      const commandEncoder = device.createCommandEncoder();
+    {
+      // Write position, normal, albedo etc. data to gBuffers
+      // const gBufferPass = commandEncoder.beginRenderPass(
+      //   writeGBufferPassDescriptor
+      // );
+      // gBufferPass.setPipeline(writeGBuffersPipeline);
+      // gBufferPass.setBindGroup(0, sceneUniformBindGroup);
+      // gBufferPass.setVertexBuffer(0, vertexBuffer);
+      // gBufferPass.setIndexBuffer(indexBuffer, 'uint16');
+      // gBufferPass.drawIndexed(indexCount);
+      // gBufferPass.end();
+    }
+      if (result[1] > 0) {
+        // cull last time
+        // draw last time;
+      }
     }
     // draw pass clusters get a depth map and cull the failed meshes. do it again. over
     return [];

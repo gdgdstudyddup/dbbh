@@ -22,8 +22,9 @@ import { ClusterStruct } from "../maintainer/ClusterMaintainer";
 
 export class DrawCallList {
     vertexBuffer: Float32Array;
+    vertexGPUBuffer: GPUBuffer;
     clusters: ClusterStruct[] = [];
-    clustersBuffer: GPUBuffer;
+    clustersGPUBuffer: GPUBuffer;
     opaque: Mesh[] = [];
     transparent: Mesh[] = [];
 }

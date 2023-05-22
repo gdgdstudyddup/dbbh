@@ -73,7 +73,47 @@ export class Object3D {
             }
         }
     }
+    lookAt(x, y, z) {
 
+        // This method does not support objects having non-uniformly-scaled parent(s)
+
+        if (x.isVector3) {
+
+            _target.copy(x);
+
+        } else {
+
+            _target.set(x, y, z);
+
+        }
+
+        const parent = this.parent;
+
+        this.manuallyUpdateMatrix(true, false);
+
+        _position.setFromMatrixPosition(this.worldMatrix);
+
+        if ((this as any).isCamera || (this as any).isLight) {
+
+            _m1.lookAt(_position, _target, this.up);
+
+        } else {
+
+            _m1.lookAt(_target, _position, this.up);
+
+        }
+
+        this.quaternion.setFromRotationMatrix(_m1);
+
+        if (parent) {
+
+            _m1.extractRotation(parent.worldMatrix);
+            _q1.setFromRotationMatrix(_m1);
+            this.quaternion.premultiply(_q1.invert());
+
+        }
+
+    }
     updateLocalMatrix(force = false) {
         if (this.localMatrixNeedsUpdate || force) {
             this.localMatrix.compose(this.position, this.quaternion, this.scale);
@@ -281,3 +321,11 @@ export class Object3D {
 
     }
 }
+const _v1 = /*@__PURE__*/ new Vector3();
+const _q1 = /*@__PURE__*/ new Quaternion();
+const _m1 = /*@__PURE__*/ new Matrix4();
+const _target = /*@__PURE__*/ new Vector3();
+
+const _position = /*@__PURE__*/ new Vector3();
+const _scale = /*@__PURE__*/ new Vector3();
+const _quaternion = /*@__PURE__*/ new Quaternion();

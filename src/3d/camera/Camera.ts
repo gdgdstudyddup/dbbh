@@ -3,12 +3,34 @@ import { Matrix4 } from "../../math/Matrix4";
 import { Object3D } from "../Object3D";
 
 export class Camera extends Object3D { // post precess may be set on camera.
-    modelViewMatrix:Matrix4;
+    modelViewMatrix: Matrix4;
+    worldMatrixInverse: Matrix4;
     useOutline = false;
     useBloom = false;
     useTaa = true;
     useSSAO = false;
     useSSR = false;
+
+
+    constructor(){
+        super();
+        this.worldMatrixInverse = new Matrix4();
+    }
+    updateWorldMatrix(force) {
+
+        super.updateWorldMatrix(force);
+
+        this.worldMatrixInverse.copy(this.worldMatrix).invert();
+
+    }
+
+    manuallyUpdateMatrix(updateParents, updateChildren) {
+
+        super.manuallyUpdateMatrix(updateParents, updateChildren);
+
+        this.worldMatrixInverse.copy(this.worldMatrix).invert();
+
+    }
 }
 
 export class PerspectiveCamera extends Camera {
@@ -26,6 +48,9 @@ export class PerspectiveCamera extends Camera {
         this.aspect = aspect;
         this.near = near;
         this.far = far;
+        this.projectionMatrix = new Matrix4();
+        this.projectionMatrixInverse = new Matrix4();
+        this.updateProjectionMatrix();
     }
 
     updateProjectionMatrix() { // jitter to be continue;

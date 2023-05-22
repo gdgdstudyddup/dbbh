@@ -44,8 +44,8 @@ export type ClusterStruct = {
 export class ClusterMaintainer {
 
     // init ssbo. may be can read it from json config file.
-    vertexBuffer = new Float32Array(268435456); // 1G = 1073741824 = 4 * 268435456
-    uboBuffer = new Float32Array();
+    vertexBuffer = new Float32Array(67108863); // max buffer size limit (268435456).
+    uboBuffer: number[] = [];
     clusters: ClusterStruct[] = [];
     meshBuffer = new Float32Array(); // 
     meshClusterOffset: number[] = [];
@@ -72,6 +72,7 @@ export class ClusterMaintainer {
             meshBuffer = new Array(16 * meshes.length);
             for (let i = 0; i < meshes.length; i++) {
                 const mesh = meshes[i];
+                this.uboBuffer.push(...mesh.worldMatrix.elements);
                 // mesh.updateWorldMatrix() // already updated
                 mesh.geometry.computeWorldBox(mesh.worldMatrix);
                 // if(mesh.material instanceof Array){
@@ -136,7 +137,7 @@ export class ClusterMaintainer {
         } else {
             // add new or alter old...... maintain
         }
-        return { instanceIDMap, clusters, meshBuffer: this.meshBuffer, inputBuffer, reTestBuffer:this.reTestBuffer,cullPassedBuffer, cullFailedBuffer: this.cullFailedBuffer, vertexBuffer, outOfMemoryObjects }
+        return { instanceIDMap, clusters, meshBuffer: this.meshBuffer, inputBuffer, reTestBuffer: this.reTestBuffer, cullPassedBuffer, cullFailedBuffer: this.cullFailedBuffer, vertexBuffer, uboBuffer: this.uboBuffer, outOfMemoryObjects }
 
     }
 }

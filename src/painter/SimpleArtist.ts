@@ -8,6 +8,7 @@ export class SimpleArtist extends Artist {
     }
 
     prepare(): void {
+        
     }
 
     draw(drawCallList: DrawCallList): void {
