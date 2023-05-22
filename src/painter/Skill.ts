@@ -1,6 +1,6 @@
 import { DrawCallList } from "./drawcall/DrawCall";
 
 export interface BasicSkill {
-    prepare():void;
+    prepare(device: GPUDevice):void;
     draw(drawCallList: DrawCallList): void
 }

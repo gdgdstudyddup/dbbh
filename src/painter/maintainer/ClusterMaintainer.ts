@@ -17,7 +17,7 @@ export type ClusterStruct = {
 }
 /**
  * InputBuffer Clusters  there need a anotherBuffer 
- * globalCluserIndex transformMatrixInformation,materialId, level
+ * globalCluserIndex, transformMatrixInformationIndex, materialId, level
  * min Box3.toVec4
  * max Box3.toVec4
  * custom vec4

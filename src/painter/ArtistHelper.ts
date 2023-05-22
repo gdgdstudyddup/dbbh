@@ -4,8 +4,9 @@ import { DrawCallList } from "./drawcall/DrawCall";
 import { ClusterMaintainer, ClusterStruct } from "./maintainer/ClusterMaintainer";
 import { Mesh } from "../3d/Mesh";
 import { Camera, PerspectiveCamera } from "../3d/camera/Camera";
-import { Artist } from "./Artist";
+import { Artist, ArtistType } from "./Artist";
 import { Matrix4 } from "../math/Matrix4";
+import { SimpleArtist } from "./SimpleArtist";
 
 /* 
     dynamic object which has cluster Tag in some case, it will be observed some frames then it will be put into cluster objects. 
@@ -103,6 +104,7 @@ export class ArtistHelper {
   // pre op
   async process(hall: Hall, artist: Artist) {
     this.activeCamera = hall.mainCamera;
+    this.activeCamera.updateWorldMatrix();
     // now we just do it  its update part
     hall.updateWorldMatrix(); // TODO it should be changed to  update object only who has been modify some stuff such as position.
     /* traverse and pick which ('cluster' === tag) into clusterPool; and do matrix update work.
@@ -161,8 +163,9 @@ export class ArtistHelper {
       size: 4 * 16 * clusterArray.length, // two 4x4 matrix
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
+    console.log(viewMatrix, uboBuffer);
     const modelData = new Float32Array(uboBuffer);
-    this.device.queue.writeBuffer(
+    this.device.queue.writeBuffer( //  use subUpdate later
       modelUniformBuffer,
       0,
       modelData.buffer,
@@ -170,15 +173,20 @@ export class ArtistHelper {
       modelData.byteLength
     );
 
-    const vertexGPUBuffer = this.device.createBuffer({
-      label: 'vertex buffer',
-      size: vertexBuffer.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-    });
-    this.device.queue.writeBuffer(vertexGPUBuffer, 0, vertexBuffer);
-    drawCallList.vertexBuffer = vertexBuffer;
-    drawCallList.vertexGPUBuffer = vertexGPUBuffer;
-    drawCallList.clusters = clusters;
+    if (drawCallList.vertexGPUBuffer === undefined) {
+      const vertexGPUBuffer = this.device.createBuffer({
+        label: 'vertex buffer',
+        size: vertexBuffer.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
+      this.device.queue.writeBuffer(vertexGPUBuffer, 0, vertexBuffer);
+      drawCallList.vertexBuffer = vertexBuffer;
+      drawCallList.vertexGPUBuffer = vertexGPUBuffer;
+      drawCallList.clusters = clusters;
+      // drawCallList.clustersGPUBuffer = cullPassedBuffer; cullPassedBuffer instanceof float32, so do it later
+    }
+    drawCallList.UBOGPUBuffer = modelUniformBuffer;
+    drawCallList.cameraGPUBuffer = cameraUniformBuffer;
     drawCallList.opaque.push(...outOfMemoryObjects);
     console.log(instanceIDMap, meshBuffer, drawCallList, clusterArray);
     // we need to beginpass so we need desc..emmmm 
@@ -225,13 +233,13 @@ export class ArtistHelper {
       });
       const passBuffer = device.createBuffer({
         label: 'pass cluster buffer',
-        size: cullPass.byteLength,
+        size: input.byteLength, // cullPass.byteLength, max size is same as inputBuffer
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
       });
 
       const failBuffer = device.createBuffer({
         label: 'failed mesh buffer',
-        size: cullFail.byteLength,
+        size: meshBuf.byteLength, // cullFail.byteLength  max size is same as meshbuffer
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
       });
 
@@ -293,19 +301,10 @@ export class ArtistHelper {
       this.resultBuffer.unmap();
       console.log(result[0], result[1]); // 16 0
       // draw first time
-      const commandEncoder = device.createCommandEncoder();
-    {
-      // Write position, normal, albedo etc. data to gBuffers
-      // const gBufferPass = commandEncoder.beginRenderPass(
-      //   writeGBufferPassDescriptor
-      // );
-      // gBufferPass.setPipeline(writeGBuffersPipeline);
-      // gBufferPass.setBindGroup(0, sceneUniformBindGroup);
-      // gBufferPass.setVertexBuffer(0, vertexBuffer);
-      // gBufferPass.setIndexBuffer(indexBuffer, 'uint16');
-      // gBufferPass.drawIndexed(indexCount);
-      // gBufferPass.end();
-    }
+      artist.prepare(device);
+      if (artist.type === ArtistType.simple) {
+        (artist as SimpleArtist).drawClusters(drawCallList, result[0]);
+      }
       if (result[1] > 0) {
         // cull last time
         // draw last time;

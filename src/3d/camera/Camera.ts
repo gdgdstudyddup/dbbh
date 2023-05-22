@@ -12,11 +12,12 @@ export class Camera extends Object3D { // post precess may be set on camera.
     useSSR = false;
 
 
-    constructor(){
+    constructor() {
         super();
         this.worldMatrixInverse = new Matrix4();
     }
-    updateWorldMatrix(force) {
+
+    updateWorldMatrix(force = true) {
 
         super.updateWorldMatrix(force);
 

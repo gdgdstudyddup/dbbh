@@ -1,5 +1,20 @@
 export class RenderPaper {
+    device: GPUDevice;
+    width: number;
+    height: number;
+    colors: GPUTextureView[] = [];
+    depth: GPUTextureView;
+    descriptor: GPURenderPassDescriptor;
+    backupDescriptor?: GPURenderPassDescriptor;
+    bindGroup: GPUBindGroup;
     constructor(device: GPUDevice, width, height) {
+        this.width = width;
+        this.height = height;
+        this.device = device;
+    }
+
+    generateGBufferPaper() {
+        const { device, width, height } = this;
         const gBufferTexture2DFloat32 = device.createTexture({
             size: [width, height],
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
@@ -100,5 +115,11 @@ export class RenderPaper {
                 depthStoreOp: 'store',
             },
         };
+        this.depth = depthView;
+        this.colors = gBufferTextureViews;
+        this.descriptor = descriptor;
+        this.backupDescriptor = backupDescriptor;
+
+        
     }
 }

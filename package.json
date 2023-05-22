@@ -5,6 +5,7 @@
     "main": "dist/main.js",
     "scripts": {
         "start": "npm i && npm run build && npm run dev",
+        "play":"npm run build && npm run dev",
         "dev": "http-server",
         "build": "cross-env NODE_ENV=production ts-node webpack.ts"
     },
@@ -29,7 +30,7 @@
     "devDependencies": {
         "@types/node": "^18.11.x",
         "@webgpu/types": "^0.1.31",
-        "three": "0.152.2",
+        "three": "^0.152.2",
         "clean-webpack-plugin": "^4.0.x",
         "cross-env": "^7.0.x",
         "http-server": "^14.1.x",

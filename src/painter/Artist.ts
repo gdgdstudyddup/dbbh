@@ -2,6 +2,11 @@ import { ArtistHelper } from "./ArtistHelper";
 import { DrawCallList } from "./drawcall/DrawCall";
 import { BasicSkill } from "./Skill";
 
+export enum ArtistType{
+    simple,
+    realistic
+}
+
 export class Artist implements BasicSkill {
 
     artistHelper: ArtistHelper;
@@ -12,6 +17,7 @@ export class Artist implements BasicSkill {
     queue: GPUQueue;
 
     context: GPUCanvasContext;
+    type = ArtistType.simple;
     constructor(canvas, context, device, adapter, queue) {
         this.canvas = canvas;
         this.context = context;
@@ -20,6 +26,6 @@ export class Artist implements BasicSkill {
         this.queue = queue;
         this.artistHelper = new ArtistHelper(device);
     }
-    prepare(): void { }
+    prepare(device: GPUDevice): void { }
     draw(drawCallList: DrawCallList): void { }
 }
