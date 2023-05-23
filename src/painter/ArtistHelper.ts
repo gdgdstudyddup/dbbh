@@ -148,8 +148,66 @@ export class ArtistHelper {
       size: 4 * 16,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    const viewMatrix = this.activeCamera.worldMatrixInverse;
-    const viewProjMatrix = new Matrix4().multiplyMatrices((this.activeCamera as PerspectiveCamera).projectionMatrix, viewMatrix);
+
+
+    const viewProjMatrix = new Matrix4().multiplyMatrices(
+      (this.activeCamera as PerspectiveCamera).projectionMatrix,
+      (this.activeCamera as PerspectiveCamera).worldMatrixInverse);
+
+    viewProjMatrix.elements = [
+
+      // 0.7521949410438538,
+      // 0.07297936081886292,
+      // -0.844219982624054,
+      // -0.8357778191566467,
+      // 0.07297936081886292,
+      // 1.3678492307662964,
+      // 0.09870542585849762,
+      // 0.09771837294101715,
+      // -1.150349497795105,
+      // 0.13449779152870178,
+      // -0.5457598567008972,
+      // -0.5403022766113281,
+      // 0,
+      // 0,
+      // 3.0303030014038086,
+      // 4
+
+
+      1.3763818740844727,
+      0,
+      0,
+      0,
+      0,
+      1.3763818740844727,
+      0,
+      0,
+      0,
+      0,
+      -1.0101009607315063,
+      -1,
+      0,
+      0,
+      19.0908813476562,
+      10
+
+      // 1.3763818740844727,
+      // 0,
+      // 0,
+      // 0,
+      // 0,
+      // 1.3763818740844727,
+      // 0,
+      // 0,
+      // 0,
+      // 0,
+      // -1.0000200271606445,
+      // -1,
+      // 0,
+      // 1376.3818359375,
+      // -10.000200271606445,
+      // 0
+    ]
     const cameraMatrixData = new Float32Array(viewProjMatrix.elements);
     this.device.queue.writeBuffer(
       cameraUniformBuffer,
@@ -163,7 +221,7 @@ export class ArtistHelper {
       size: 4 * 16 * 100, // clusterArray.length, // two 4x4 matrix
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    console.log(viewMatrix, uboBuffer);
+    console.log(viewProjMatrix, uboBuffer, 'camera matrices');
     const modelData = new Float32Array(uboBuffer);
     this.device.queue.writeBuffer( //  use subUpdate later
       modelUniformBuffer,
@@ -185,14 +243,17 @@ export class ArtistHelper {
       drawCallList.clusters = clusters;
       // drawCallList.clustersGPUBuffer = cullPassedBuffer; cullPassedBuffer instanceof float32, so do it later
     }
+    console.log('vertexBuffer', vertexBuffer, modelData, cameraMatrixData);
     drawCallList.uboGPUBuffer = modelUniformBuffer;
     drawCallList.cameraGPUBuffer = cameraUniformBuffer;
     drawCallList.opaque.push(...outOfMemoryObjects);
     console.log(instanceIDMap, meshBuffer, drawCallList, clusterArray);
     // we need to beginpass so we need desc..emmmm 
     // this function contains 4 steps [cull draw cull draw]', it will generate a depth map for oc culling of normal objects 
-    await this.writeToGBuffer(drawCallList, meshBuffer, inputBuffer, reTestBuffer, cullPassedBuffer, cullFailedBuffer, artist);
+    // await this.writeToGBuffer(drawCallList, meshBuffer, inputBuffer, reTestBuffer, cullPassedBuffer, cullFailedBuffer, artist);
+    await this.debugClusters(drawCallList, meshBuffer, inputBuffer, reTestBuffer, cullPassedBuffer, cullFailedBuffer, artist);
     // normal object should cull-test one time only, because the occlusion object that we using is cluster. 
+    // (artist as SimpleArtist).debug();
     return drawCallList;
   }
   getBufferFromClusterStructs(clusters: ClusterStruct[]) {
@@ -213,7 +274,103 @@ export class ArtistHelper {
   async cullCluster(clusters: ClusterStruct[]) {
     return []; // it is a ssbo result
   }
+  async debugClusters(drawCallList: DrawCallList, meshBuf: Float32Array, input: Float32Array, reTestBuffer: Float32Array, cullPass: Float32Array, cullFail: Float32Array, artist: Artist) {
+    // use ssbo A(clusters array) as input use ssbo B(culled and simplify cluster array, remove box3, only have information of map )  as output
+    const device = this.device;
+    const storageBufferSize = 64; // vec4 * 4 * 4
+    if ((input.length > 0 && this.defaultBindGroup === undefined) || this.needToResize) {
+      const count = new Uint32Array(2);
+      const inputBuffer = device.createBuffer({
+        label: 'input buffer',
+        size: input.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
+      const meshBuffer = device.createBuffer({
+        label: 'mesh buffer',
+        size: meshBuf.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
+      const passBuffer = device.createBuffer({
+        label: 'pass cluster buffer',
+        size: input.byteLength, // cullPass.byteLength, max size is same as inputBuffer
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
 
+      const failBuffer = device.createBuffer({
+        label: 'failed mesh buffer',
+        size: meshBuf.byteLength, // cullFail.byteLength  max size is same as meshbuffer
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
+
+      const countBuffer = device.createBuffer({
+        label: 'count buffer',
+        size: count.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
+
+      const resultBuffer = device.createBuffer({
+        label: 'result buffer',
+        size: count.byteLength,
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+      });
+      // Copy our input data to that buffer
+      device.queue.writeBuffer(inputBuffer, 0, input);
+      device.queue.writeBuffer(meshBuffer, 0, meshBuf);
+      this.inputBuffer = inputBuffer;
+      this.meshBuffer = meshBuffer;
+      this.passBuffer = passBuffer;
+      this.failBuffer = failBuffer;
+      this.countBuffer = countBuffer;
+      this.resultBuffer = resultBuffer;
+
+      this.defaultBindGroup = device.createBindGroup({
+        label: 'bindGroup for cull',
+        layout: this.defaultCullPipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: inputBuffer } },
+          { binding: 1, resource: { buffer: meshBuffer } },
+          { binding: 2, resource: { buffer: passBuffer } },
+          { binding: 3, resource: { buffer: failBuffer } },
+          { binding: 4, resource: { buffer: countBuffer } },
+        ],
+      });
+    }
+
+    if (input.length > 0) {
+      device.queue.writeBuffer(this.countBuffer, 0, new Float32Array([0, 0]));
+      const encoder = device.createCommandEncoder({
+        label: 'culling encoder',
+      });
+      const pass = encoder.beginComputePass({
+        label: 'culling compute pass',
+      });
+      pass.setPipeline(this.defaultCullPipeline);
+      pass.setBindGroup(0, this.defaultBindGroup);
+      const dispatchCount = meshBuf.byteLength / storageBufferSize;
+      pass.dispatchWorkgroups(dispatchCount);
+      pass.end();
+
+      drawCallList.clustersGPUBuffer = this.passBuffer;
+
+      encoder.copyBufferToBuffer(this.countBuffer, 0, this.resultBuffer, 0, this.resultBuffer.size);
+      const commandBuffer = encoder.finish();
+      device.queue.submit([commandBuffer]);
+      await this.resultBuffer.mapAsync(GPUMapMode.READ);
+      const result = new Uint32Array(this.resultBuffer.getMappedRange().slice(0));
+      this.resultBuffer.unmap();
+      console.log(result[0], result[1]); // 16 0
+      // draw first time
+      if (artist.type === ArtistType.simple) {
+        (artist as SimpleArtist).debugClusters(drawCallList, result[0]);
+      }
+      if (result[1] > 0) {
+        // cull last time
+        // draw last time;
+      }
+    }
+    // draw pass clusters get a depth map and cull the failed meshes. do it again. over
+    return [];
+  }
   // this function may be re-design it will be involved with draw-option?
   async writeToGBuffer(drawCallList: DrawCallList, meshBuf: Float32Array, input: Float32Array, reTestBuffer: Float32Array, cullPass: Float32Array, cullFail: Float32Array, artist: Artist) {
     // use ssbo A(clusters array) as input use ssbo B(culled and simplify cluster array, remove box3, only have information of map )  as output

@@ -47,9 +47,9 @@ export class RenderPaper {
                     view: gBufferTextureViews[0],
 
                     clearValue: {
-                        r: Number.MAX_VALUE,
-                        g: Number.MAX_VALUE,
-                        b: Number.MAX_VALUE,
+                        r: 0.1,
+                        g: 0.1,
+                        b: 0.1,
                         a: 1.0,
                     },
                     loadOp: 'clear',

@@ -41,7 +41,8 @@ export class Party {
             if (!this.context) {
                 if (!this.canvas) {
                     const canvas = document.getElementById('gfx') as HTMLCanvasElement;
-                    canvas.width = canvas.height = 640;
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
                     this.canvas = canvas;
                 }
                 this.context = this.canvas.getContext('webgpu');
@@ -179,7 +180,7 @@ export class Party {
     addHall(hall: Hall) {
         this.halls.push(hall);
     }
-    
+
     removeHall(hall: Hall) {
         const index = this.halls.findIndex(h => h === hall);
         if (index !== -1) {
