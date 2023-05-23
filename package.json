@@ -5,7 +5,7 @@
     "main": "dist/main.js",
     "scripts": {
         "start": "npm i && npm run build && npm run dev",
-        "play":"npm run build && npm run dev",
+        "play": "npm run build && npm run dev",
         "dev": "http-server",
         "build": "cross-env NODE_ENV=production ts-node webpack.ts"
     },

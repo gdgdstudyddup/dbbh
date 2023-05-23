@@ -44,7 +44,10 @@ export type ClusterStruct = {
 export class ClusterMaintainer {
 
     // init ssbo. may be can read it from json config file.
-    vertexBuffer = new Float32Array(67108863); // max buffer size limit (268435456).
+    // 134217728
+    // 67108863
+    // 33554431
+    vertexBuffer = new Float32Array(33554431); // max buffer size limit (268435456).
     uboBuffer: number[] = [];
     clusters: ClusterStruct[] = [];
     meshBuffer = new Float32Array(); // 
@@ -58,7 +61,6 @@ export class ClusterMaintainer {
         const vertexBuffer = this.vertexBuffer;
         const clusters = this.clusters;
         const tempBuffer: number[] = [];
-        let inputBuffer = this.inputBuffer;
         let cullPassedBuffer = this.cullPassedBuffer;
         let meshBuffer = [];
         let currentOffset = 0;
@@ -129,15 +131,27 @@ export class ClusterMaintainer {
 
                 this.oldMesh.add(mesh);
             }
-            inputBuffer = Float32Array.from(tempBuffer);
-            cullPassedBuffer = new Float32Array(tempBuffer.length);
+            this.inputBuffer = Float32Array.from(tempBuffer);
+            this.cullPassedBuffer = new Float32Array(tempBuffer.length);
             this.reTestBuffer = new Float32Array(tempBuffer.length);
             this.meshBuffer = Float32Array.from(meshBuffer);
             this.cullFailedBuffer = Float32Array.from(meshBuffer);
         } else {
             // add new or alter old...... maintain
         }
-        return { instanceIDMap, clusters, meshBuffer: this.meshBuffer, inputBuffer, reTestBuffer: this.reTestBuffer, cullPassedBuffer, cullFailedBuffer: this.cullFailedBuffer, vertexBuffer, uboBuffer: this.uboBuffer, outOfMemoryObjects }
+        console.log(currentOffset)
+        return {
+            instanceIDMap,
+            clusters,
+            meshBuffer: this.meshBuffer,
+            inputBuffer: this.inputBuffer,
+            reTestBuffer: this.reTestBuffer,
+            cullPassedBuffer: this.cullPassedBuffer,
+            cullFailedBuffer: this.cullFailedBuffer,
+            vertexBuffer,
+            uboBuffer: this.uboBuffer,
+            outOfMemoryObjects
+        }
 
     }
 }

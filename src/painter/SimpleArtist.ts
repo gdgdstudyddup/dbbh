@@ -41,8 +41,11 @@ export class SimpleArtist extends Artist {
                         { format: 'bgra8unorm' },
                     ],
                 },
-                primitive: {
-                    topology: 'triangle-list',
+                primitive:  this.gBufferPrimitive,
+                depthStencil: {
+                    depthWriteEnabled: true,
+                    depthCompare: 'less',
+                    format: 'depth24plus',
                 },
             });
 
@@ -70,16 +73,42 @@ export class SimpleArtist extends Artist {
         struct TransformUniforms {
            // modelMatrix : mat4x4<f32>,
            // normalModelMatrix : mat4x4<f32>,
-           modelMatrix : array<mat4x4<f32>, xxxxx>,
+           modelMatrix : array<mat4x4<f32>, 100>,
         };
 
         struct Camera {
             viewProjectionMatrix : mat4x4<f32>,
         };
-        @group(0) @binding(0) var<storage, read> vertexBuffer: array<f32, yyyyyy>
-        @group(0) @binding(1) var<storage, read> clusterBuffer: array<f32, zzzzz>;
-        @group(0) @binding(2) var<storage, read> uboBuffer: TransformUniforms;
-        @group(0) @binding(3) var<storage, read> cameraBuffer: Camera;`;
+
+        struct VertexOutput {
+            @builtin(position) Position : vec4<f32>,
+            @location(0) fragPosition: vec3<f32>,  // position in world space
+            @location(1) fragNormal: vec3<f32>,    // normal in world space
+            @location(2) fragUV: vec2<f32>,
+        };
+        @group(0) @binding(0) var<storage, read> vertexBuffer:  array<f32>;
+        @group(0) @binding(1) var<storage, read> clusterBuffer: array<f32>;
+        @group(0) @binding(2) var<uniform> ubo: TransformUniforms;
+        @group(0) @binding(3) var<uniform> camera: Camera;
+        @vertex
+        fn main(
+            @builtin(vertex_index) vertexIdx : u32,
+            @builtin(instance_index) instanceIdx : u32,
+        ) -> VertexOutput {
+            let vertexStride: u32 = 8;
+            let instanceStride: u32 = 384 * vertexStride;
+            let clusterStride: u32 = 16;
+            let baseOffset = instanceIdx * instanceStride + vertexIdx * vertexStride;
+            let position = vec4(vertexBuffer[baseOffset], vertexBuffer[baseOffset + 1], vertexBuffer[baseOffset + 2], 1.0);
+            var output : VertexOutput;
+            let uboIndex = u32(clusterBuffer[instanceIdx * clusterStride + 1]);
+            output.fragPosition = (ubo.modelMatrix[uboIndex] * position).xyz;
+            output.Position = camera.viewProjectionMatrix * vec4(output.fragPosition, 1.0);
+            output.fragNormal = vec3(vertexBuffer[baseOffset + 3], vertexBuffer[baseOffset + 4], vertexBuffer[baseOffset + 5]);
+            output.fragUV = vec2(vertexBuffer[baseOffset + 6], vertexBuffer[baseOffset + 7]);
+            return output;
+        }
+        `;
 
         const frag = `
         struct GBufferOutput {
@@ -117,6 +146,8 @@ export class SimpleArtist extends Artist {
         {
             gBufferPass.setPipeline(this.gBufferPipeline);
             if (this.gBufferUBOBindGroup === undefined || update) {
+                const test = this.gBufferPipeline.getBindGroupLayout(0);
+                console.log('test', test);
                 this.gBufferUBOBindGroup = device.createBindGroup({
                     layout: this.gBufferPipeline.getBindGroupLayout(0),
                     entries: [
@@ -135,7 +166,7 @@ export class SimpleArtist extends Artist {
                         {
                             binding: 2,
                             resource: {
-                                buffer: drawCallList.UBOGPUBuffer,
+                                buffer: drawCallList.uboGPUBuffer,
                             },
                         },
                         {
@@ -147,6 +178,7 @@ export class SimpleArtist extends Artist {
                     ],
                 });
             }
+            gBufferPass.setBindGroup(0, this.gBufferUBOBindGroup);
             gBufferPass.draw(384, clusterCount, 0, 0);
         }
         gBufferPass.end();

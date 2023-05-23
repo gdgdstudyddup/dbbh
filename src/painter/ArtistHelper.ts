@@ -160,7 +160,7 @@ export class ArtistHelper {
     );
 
     const modelUniformBuffer = this.device.createBuffer({
-      size: 4 * 16 * clusterArray.length, // two 4x4 matrix
+      size: 4 * 16 * 100, // clusterArray.length, // two 4x4 matrix
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
     console.log(viewMatrix, uboBuffer);
@@ -185,7 +185,7 @@ export class ArtistHelper {
       drawCallList.clusters = clusters;
       // drawCallList.clustersGPUBuffer = cullPassedBuffer; cullPassedBuffer instanceof float32, so do it later
     }
-    drawCallList.UBOGPUBuffer = modelUniformBuffer;
+    drawCallList.uboGPUBuffer = modelUniformBuffer;
     drawCallList.cameraGPUBuffer = cameraUniformBuffer;
     drawCallList.opaque.push(...outOfMemoryObjects);
     console.log(instanceIDMap, meshBuffer, drawCallList, clusterArray);

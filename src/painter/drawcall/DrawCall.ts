@@ -28,5 +28,5 @@ export class DrawCallList {
     vertexGPUBuffer: GPUBuffer;
     clustersGPUBuffer: GPUBuffer;
     cameraGPUBuffer:GPUBuffer;
-    UBOGPUBuffer:GPUBuffer;
+    uboGPUBuffer:GPUBuffer;
 }
