@@ -104,7 +104,7 @@ export class ArtistHelper {
   // pre op
   async process(hall: Hall, artist: Artist) {
     this.activeCamera = hall.mainCamera;
-    this.activeCamera.updateWorldMatrix();
+    this.activeCamera.updateWorldMatrix(true);
     // now we just do it  its update part
     hall.updateWorldMatrix(); // TODO it should be changed to  update object only who has been modify some stuff such as position.
     /* traverse and pick which ('cluster' === tag) into clusterPool; and do matrix update work.
@@ -149,10 +149,12 @@ export class ArtistHelper {
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
 
-
     const viewProjMatrix = new Matrix4().multiplyMatrices(
       (this.activeCamera as PerspectiveCamera).projectionMatrix,
       (this.activeCamera as PerspectiveCamera).worldMatrixInverse);
+
+    console.log('viewProjMatrix',
+      viewProjMatrix.clone())
 
     const cameraMatrixData = new Float32Array(viewProjMatrix.elements);
     this.device.queue.writeBuffer(

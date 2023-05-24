@@ -597,6 +597,8 @@ class Matrix4 {
         te[13] = 0;
         te[15] = 0;
 
+        const c = - ( zFar + zNear ) / ( zFar - zNear );
+		const d = - 2 * zFar * zNear / ( zFar - zNear );
         if (zFar === Infinity) {
             te[10] = -1;
             te[14] = -zNear;
@@ -605,7 +607,7 @@ class Matrix4 {
             te[10] = zFar * rangeInv;
             te[14] = zFar * zNear * rangeInv;
         }
-
+        console.log('proj',this)
         return this;
 
     }
@@ -637,27 +639,49 @@ class Matrix4 {
 
     }
 
-    lookAt(eye: Vector3, target: Vector3, up: Vector3, dst?: Matrix4): Matrix4 {
-        dst = dst || new Matrix4();
-        const te = dst.elements;
+    lookAt(eye: Vector3, target: Vector3, up: Vector3): Matrix4 {
+        const te = this.elements;
 
-        xAxis = xAxis || new Vector3();
-        yAxis = yAxis || new Vector3();
-        zAxis = zAxis || new Vector3();
-        yAxis.subVectors(eye, target).normalize();
-        xAxis.subVectors(yAxis, up).normalize();
-        zAxis.subVectors(xAxis, yAxis).normalize();
+		_z.subVectors( eye, target );
 
-        te[0] = xAxis.x; te[1] = yAxis.x; te[2] = zAxis.x; te[3] = 0;
-        te[4] = xAxis.y; te[5] = yAxis.y; te[6] = zAxis.y; te[7] = 0;
-        te[8] = xAxis.z; te[9] = yAxis.z; te[10] = zAxis.z; te[11] = 0;
+		if ( _z.lengthSq() === 0 ) {
 
-        te[12] = -(xAxis.x * eye.x + xAxis.y * eye.y + xAxis.z * eye.z);
-        te[13] = -(yAxis.x * eye.x + yAxis.y * eye.y + yAxis.z * eye.z);
-        te[14] = -(zAxis.x * eye.x + zAxis.y * eye.y + zAxis.z * eye.z);
-        te[15] = 1;
+			// eye and target are in the same position
 
-        return dst;
+			_z.z = 1;
+
+		}
+
+		_z.normalize();
+		_x.crossVectors( up, _z );
+
+		if ( _x.lengthSq() === 0 ) {
+
+			// up and z are parallel
+
+			if ( Math.abs( up.z ) === 1 ) {
+
+				_z.x += 0.0001;
+
+			} else {
+
+				_z.z += 0.0001;
+
+			}
+
+			_z.normalize();
+			_x.crossVectors( up, _z );
+
+		}
+
+		_x.normalize();
+		_y.crossVectors( _z, _x );
+
+		te[ 0 ] = _x.x; te[ 4 ] = _y.x; te[ 8 ] = _z.x;
+		te[ 1 ] = _x.y; te[ 5 ] = _y.y; te[ 9 ] = _z.y;
+		te[ 2 ] = _x.z; te[ 6 ] = _y.z; te[ 10 ] = _z.z;
+
+		return this;
 
     }
 

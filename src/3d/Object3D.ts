@@ -92,10 +92,11 @@ export class Object3D {
         this.manuallyUpdateMatrix(true, false);
 
         _position.setFromMatrixPosition(this.worldMatrix);
-        console.log('up!!!!!',(this as any).up)
+        console.log('up!!!!!',(this as any).up, _position)
         if ((this as any).isCamera || (this as any).isLight) {
 
             _m1.lookAt(_position, _target, this.up);
+            console.log(_m1.clone(),'m1')
 
         } else {
 
@@ -112,6 +113,7 @@ export class Object3D {
             this.quaternion.premultiply(_q1.invert());
 
         }
+        console.log('this.quaternion',_m1, this.quaternion)
 
     }
     updateLocalMatrix(force = false) {

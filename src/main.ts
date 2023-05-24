@@ -26,22 +26,21 @@ const mesh0 = new DBBH.Mesh(geometry, material);
 const geometry1 = new DBBH.Geometry();
 const mesh1 = new DBBH.Mesh(geometry1, material);
 {
-    const { position, normal, uv, index } = BoxGeometryInfo(100, 100, 300);
+    const { position, normal, uv, index } = BoxGeometryInfo(100, 100, 100);
     mesh1.setVertices('position', 3, 'f32', position);
     mesh1.setVertices('normal', 3, 'f32', normal);
     mesh1.setVertices('uv', 2, 'f32', uv);
     mesh1.setIndex(index);
     // mesh1.removeVertices('normal');
-    mesh1.quaternion.y = 0.3;
-    mesh1.position.set(-300, 0, 0);
+    mesh1.position.set(0, 0, 100);
 }
 
 
 const hall = new DBBH.Hall(true);
 
 const camera = new PerspectiveCamera(70, window.innerWidth / window.innerHeight);
-camera.up = new Vector3(0, 0, 1);
-camera.position.set(100, 150, 1000);
+camera.up.set(0, 0, 1);
+camera.position.set(300, 1000, 0);
 camera.lookAt(0, 0, 0);
 hall.setMainCamera(camera);
 hall.add([mesh0, mesh1]);

@@ -10,6 +10,7 @@ export class Camera extends Object3D { // post precess may be set on camera.
     useTaa = true;
     useSSAO = false;
     useSSR = false;
+    isCamera = true;
 
 
     constructor() {
