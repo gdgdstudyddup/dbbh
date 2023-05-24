@@ -573,41 +573,36 @@ class Matrix4 {
 
     }
 
-    makePerspective(fieldOfViewYInRadians: number, aspect: number, zNear: number, zFar: number): Matrix4 {
+    makePerspective(left, right, top, bottom, near, far) {
+
+        if (far === undefined) {
+
+            console.warn('THREE.Matrix4: .makePerspective() has been redefined and has a new signature. Please check the docs.');
+
+        }
 
         const te = this.elements;
+        const x = 2 * near / (right - left);
+        const y = 2 * near / (top - bottom);
 
-        const f = Math.tan(Math.PI * 0.5 - 0.5 * fieldOfViewYInRadians);
+        const a = (right + left) / (right - left);
+        const b = (top + bottom) / (top - bottom);
+        // const c = - ( far + near ) / ( far - near );
+        // const d = - 2 * far * near / ( far - near );
 
-        te[0] = f / aspect;
-        te[1] = 0;
-        te[2] = 0;
-        te[3] = 0;
-
-        te[4] = 0;
-        te[5] = f;
-        te[6] = 0;
-        te[7] = 0;
-
-        te[8] = 0;
-        te[9] = 0;
-        te[11] = -1;
-
-        te[12] = 0;
-        te[13] = 0;
-        te[15] = 0;
-
-        const c = - ( zFar + zNear ) / ( zFar - zNear );
-		const d = - 2 * zFar * zNear / ( zFar - zNear );
-        if (zFar === Infinity) {
+        te[0] = x; te[4] = 0; te[8] = a; te[12] = 0;
+        te[1] = 0; te[5] = y; te[9] = b; te[13] = 0;
+        te[2] = 0; te[6] = 0; te[10] = 0; te[14] = 0;
+        te[3] = 0; te[7] = 0; te[11] = - 1; te[15] = 0;
+        if (far === Infinity) {
             te[10] = -1;
-            te[14] = -zNear;
+            te[14] = -near;
         } else {
-            const rangeInv = 1 / (zNear - zFar);
-            te[10] = zFar * rangeInv;
-            te[14] = zFar * zNear * rangeInv;
+            const rangeInv = 1 / (near - far);
+            te[10] = far * rangeInv;
+            te[14] = far * near * rangeInv;
         }
-        console.log('proj',this)
+
         return this;
 
     }
@@ -642,46 +637,46 @@ class Matrix4 {
     lookAt(eye: Vector3, target: Vector3, up: Vector3): Matrix4 {
         const te = this.elements;
 
-		_z.subVectors( eye, target );
+        _z.subVectors(eye, target);
 
-		if ( _z.lengthSq() === 0 ) {
+        if (_z.lengthSq() === 0) {
 
-			// eye and target are in the same position
+            // eye and target are in the same position
 
-			_z.z = 1;
+            _z.z = 1;
 
-		}
+        }
 
-		_z.normalize();
-		_x.crossVectors( up, _z );
+        _z.normalize();
+        _x.crossVectors(up, _z);
 
-		if ( _x.lengthSq() === 0 ) {
+        if (_x.lengthSq() === 0) {
 
-			// up and z are parallel
+            // up and z are parallel
 
-			if ( Math.abs( up.z ) === 1 ) {
+            if (Math.abs(up.z) === 1) {
 
-				_z.x += 0.0001;
+                _z.x += 0.0001;
 
-			} else {
+            } else {
 
-				_z.z += 0.0001;
+                _z.z += 0.0001;
 
-			}
+            }
 
-			_z.normalize();
-			_x.crossVectors( up, _z );
+            _z.normalize();
+            _x.crossVectors(up, _z);
 
-		}
+        }
 
-		_x.normalize();
-		_y.crossVectors( _z, _x );
+        _x.normalize();
+        _y.crossVectors(_z, _x);
 
-		te[ 0 ] = _x.x; te[ 4 ] = _y.x; te[ 8 ] = _z.x;
-		te[ 1 ] = _x.y; te[ 5 ] = _y.y; te[ 9 ] = _z.y;
-		te[ 2 ] = _x.z; te[ 6 ] = _y.z; te[ 10 ] = _z.z;
+        te[0] = _x.x; te[4] = _y.x; te[8] = _z.x;
+        te[1] = _x.y; te[5] = _y.y; te[9] = _z.y;
+        te[2] = _x.z; te[6] = _y.z; te[10] = _z.z;
 
-		return this;
+        return this;
 
     }
 

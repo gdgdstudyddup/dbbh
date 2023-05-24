@@ -40,7 +40,7 @@ const hall = new DBBH.Hall(true);
 
 const camera = new PerspectiveCamera(70, window.innerWidth / window.innerHeight);
 camera.up.set(0, 0, 1);
-camera.position.set(300, 1000, 0);
+camera.position.set(300, 888, 0);
 camera.lookAt(0, 0, 0);
 hall.setMainCamera(camera);
 hall.add([mesh0, mesh1]);

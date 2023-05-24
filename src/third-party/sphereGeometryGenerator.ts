@@ -14,9 +14,16 @@ export function SphereGeometryInfo(radius = 1, widthSegments = 32, heightSegment
 
 
         temp = normal[i + 1];
-        normal[i + 1] = normal[i + 2];
-        normal[i + 2] = temp;
+        normal[i + 1] = -normal[i + 2];
+        normal[i + 2] = -temp;
 
+        normal[i] *= -1;
+
+    }
+    for (let i = 0; i < index.length; i += 3) {
+        let temp = index[i + 2];
+        index[i + 2] = index[i];
+        index[i] = temp;
     }
     return {
         position,
@@ -26,7 +33,7 @@ export function SphereGeometryInfo(radius = 1, widthSegments = 32, heightSegment
     }
 }
 export function BoxGeometryInfo(width, height, depth) {
-    const box = new THREE.BoxGeometry(width, height, depth, 10,10,10);
+    const box = new THREE.BoxGeometry(width, height, depth, 10, 10, 10);
     const position = box.attributes.position.array;
     const normal = box.attributes.normal.array;
     const uv = box.attributes.uv.array;
@@ -39,10 +46,18 @@ export function BoxGeometryInfo(width, height, depth) {
 
 
         temp = normal[i + 1];
-        normal[i + 1] = normal[i + 2];
-        normal[i + 2] = temp;
+        normal[i + 1] = -normal[i + 2];
+        normal[i + 2] = -temp;
+        normal[i] *= -1;
 
     }
+
+    for (let i = 0; i < index.length; i += 3) {
+        let temp = index[i + 2];
+        index[i + 2] = index[i];
+        index[i] = temp;
+    }
+
     return {
         position,
         normal,
