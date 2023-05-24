@@ -32,6 +32,7 @@ const mesh1 = new DBBH.Mesh(geometry1, material);
     mesh1.setVertices('uv', 2, 'f32', uv);
     mesh1.setIndex(index);
     // mesh1.removeVertices('normal');
+    mesh1.quaternion.y = 0.3;
     mesh1.position.set(-300, 0, 0);
 }
 

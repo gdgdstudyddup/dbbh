@@ -88,11 +88,11 @@ export class ArtistHelper {
       let pCount = atomicLoad(&allCount.count);
       let start = u32(mesh.lod01.x);
       let end = u32(mesh.lod01.y);
-      let size = end - start;
+      let size = end - start + 1;
       for(var i = start; i <= end; i++) {
-        passClusters[pCount + i - start] = inputClusters[i];
+        passClusters[i] = inputClusters[i];
       }
-      atomicAdd(&allCount.count, size + 1);
+      atomicAdd(&allCount.count, size);
     } else {
       let fCount = atomicLoad(&allCount.failedMeshCount);
       failMesh[fCount] = mesh;
@@ -153,11 +153,7 @@ export class ArtistHelper {
     const viewProjMatrix = new Matrix4().multiplyMatrices(
       (this.activeCamera as PerspectiveCamera).projectionMatrix,
       (this.activeCamera as PerspectiveCamera).worldMatrixInverse);
-    console.log('viewProjMatrix',
-      (this.activeCamera as PerspectiveCamera).projectionMatrix,
-      (this.activeCamera as PerspectiveCamera).worldMatrixInverse,
-      viewProjMatrix);
-   
+
     const cameraMatrixData = new Float32Array(viewProjMatrix.elements);
     this.device.queue.writeBuffer(
       cameraUniformBuffer,
@@ -171,7 +167,6 @@ export class ArtistHelper {
       size: 4 * 16 * 100, // clusterArray.length, // two 4x4 matrix
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    console.log(viewProjMatrix, uboBuffer, 'camera matrices');
     const modelData = new Float32Array(uboBuffer);
     this.device.queue.writeBuffer( //  use subUpdate later
       modelUniformBuffer,

@@ -6,18 +6,18 @@ export function SphereGeometryInfo(radius = 1, widthSegments = 32, heightSegment
     const normal = sphere.attributes.normal.array;
     const uv = sphere.attributes.uv.array;
     const index = sphere.index.array;
-    for (let i = 0; i < position.length; i += 3) {
-        let temp;
-        temp = position[i + 1];
-        position[i + 1] = position[i + 2];
-        position[i + 2] = temp;
+    // for (let i = 0; i < position.length; i += 3) {
+        // let temp;
+        // temp = position[i + 1];
+        // position[i + 1] = position[i + 2];
+        // position[i + 2] = temp;
 
 
-        temp = normal[i + 1];
-        normal[i + 1] = normal[i + 2];
-        normal[i + 2] = temp;
+        // temp = normal[i + 1];
+        // normal[i + 1] = normal[i + 2];
+        // normal[i + 2] = temp;
 
-    }
+    // }
     return {
         position,
         normal,
@@ -31,18 +31,18 @@ export function BoxGeometryInfo(width, height, depth) {
     const normal = box.attributes.normal.array;
     const uv = box.attributes.uv.array;
     const index = box.index.array;
-    for (let i = 0; i < position.length; i += 3) {
-        let temp;
-        temp = position[i + 1];
-        position[i + 1] = position[i + 2];
-        position[i + 2] = temp;
+    // for (let i = 0; i < position.length; i += 3) {
+    //     let temp;
+    //     temp = position[i + 1];
+    //     position[i + 1] = position[i + 2];
+    //     position[i + 2] = temp;
 
 
-        temp = normal[i + 1];
-        normal[i + 1] = normal[i + 2];
-        normal[i + 2] = temp;
+    //     temp = normal[i + 1];
+    //     normal[i + 1] = normal[i + 2];
+    //     normal[i + 2] = temp;
 
-    }
+    // }
     return {
         position,
         normal,

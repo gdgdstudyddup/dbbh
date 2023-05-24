@@ -103,9 +103,7 @@ export class SimpleArtist extends Artist {
             let position = vec4(vertexBuffer[baseOffset], vertexBuffer[baseOffset + 1], vertexBuffer[baseOffset + 2], 1.0);
             var output : VertexOutput;
             let uboIndex = u32(clusterBuffer[instanceIdx * clusterStride + 1]);
-            if(instanceIdx<8){
-            output.fragPosition = (ubo.modelMatrix[uboIndex] * position).xyz;}
-            else {output.fragPosition = (ubo.modelMatrix[uboIndex] * position).xyz;}
+            output.fragPosition = (ubo.modelMatrix[uboIndex] * position).xyz;
             output.Position = camera.viewProjectionMatrix * vec4(output.fragPosition, 1.0);
             output.fragNormal = vec3(vertexBuffer[baseOffset + 3], vertexBuffer[baseOffset + 4], vertexBuffer[baseOffset + 5]);
             output.fragUV = vec2(vertexBuffer[baseOffset + 6], vertexBuffer[baseOffset + 7]);
@@ -135,7 +133,7 @@ export class SimpleArtist extends Artist {
             var output : GBufferOutput;
             output.position = vec4(fragPosition, 1.0);
             output.normal = vec4(fragNormal, 1.0);
-            output.albedo = vec4(1.0,c,c, 1.0);
+            output.albedo = vec4(1.0, 0.0, 0.0, 1.0);
           
             return output;
           }`;
@@ -417,7 +415,7 @@ export class SimpleArtist extends Artist {
                     //     );
                     //   }
                       result = textureLoad(
-                        gBufferAlbedo,
+                        gBufferNormal,
                         vec2<i32>(floor(coord.xy)),
                         0
                       ) + 0.1;
