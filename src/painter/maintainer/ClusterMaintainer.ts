@@ -100,9 +100,9 @@ export class ClusterMaintainer {
                     // record cluster info
                     const clusterCount = vertices.length / stride / 3 / Mesh.CLUSTER_SIZE;
                     mesh.clusterInfo[level * 2] = instanceCount;
-                    mesh.clusterInfo[level * 2 + 1] = instanceCount + clusterCount;
+                    mesh.clusterInfo[level * 2 + 1] = instanceCount + clusterCount - 1;
                     meshBuffer[i * 16 + level * 2] = instanceCount; // cluster index;
-                    meshBuffer[i * 16 + level * 2 + 1] = instanceCount + clusterCount;
+                    meshBuffer[i * 16 + level * 2 + 1] = instanceCount + clusterCount - 1;
                     /*
                     Mesh{
                         clusterInfo0:[instanceCount, instanceCount + clusterCount],
@@ -110,8 +110,9 @@ export class ClusterMaintainer {
                         clusterInfoN:[instanceCount, instanceCount + clusterCount]
                     }
                     */
-
+                    console.log('clusterCount', clusterCount);
                     for (let count = 0; count < clusterCount; count++) {
+                        console.log('!!!!', count)
                         clusters.push({
                             ssml: new Vector4(instanceCount, i, (mesh.material as Material).id, level),
                             min: mesh.geometry.wBox3.min.toVector4(),
@@ -136,10 +137,13 @@ export class ClusterMaintainer {
             this.reTestBuffer = new Float32Array(tempBuffer.length);
             this.meshBuffer = Float32Array.from(meshBuffer);
             this.cullFailedBuffer = Float32Array.from(meshBuffer);
+            console.log(meshBuffer)
+            // for (let i = 0; i < tempBuffer.length; i += 16) {
+            //     console.log(i/16, tempBuffer[i], tempBuffer[i + 1]);
+            // }
         } else {
             // add new or alter old...... maintain
         }
-        console.log(currentOffset)
         return {
             instanceIDMap,
             clusters,

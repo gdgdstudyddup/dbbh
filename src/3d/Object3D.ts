@@ -92,7 +92,7 @@ export class Object3D {
         this.manuallyUpdateMatrix(true, false);
 
         _position.setFromMatrixPosition(this.worldMatrix);
-
+        console.log('up!!!!!',(this as any).up)
         if ((this as any).isCamera || (this as any).isLight) {
 
             _m1.lookAt(_position, _target, this.up);

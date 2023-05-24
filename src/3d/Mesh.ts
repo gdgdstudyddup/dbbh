@@ -132,12 +132,13 @@ export class Mesh extends Drawable {
             if (geometry.index) {
                 for (let i = 0; i < geometry.index.length; i++) {
                     for (let offset = 0; offset < geometry.stride; offset++) {
-                        lodCluster.push(vertices[i * geometry.stride + offset]); // float32
+                        lodCluster.push(vertices[geometry.index[i] * geometry.stride + offset]); // float32
                     }
                     if (i % 3 === 0) {
                         triangleCounts++;
                     }
                 }
+                console.log('lodCluster',lodCluster);
             } else {
                 for (let i = 0; i < vertices.length; i++) {
                     lodCluster.push(vertices[i]);
@@ -145,9 +146,12 @@ export class Mesh extends Drawable {
                 triangleCounts = vertices.length / geometry.stride / 3;
             }
             const needVerticesCounts = (Mesh.CLUSTER_SIZE - triangleCounts % Mesh.CLUSTER_SIZE) * 3;
+            console.log('triangleCounts, needVerticesCounts', triangleCounts, needVerticesCounts,lodCluster.length);
+
             for (let i = 0; i < needVerticesCounts; i++) {
                 for (let offset = 0; offset < geometry.stride; offset++) { lodCluster.push(0.0); }
             }
+            console.log('stride',geometry.stride,lodCluster.length);
             clusters[level] = new Float32Array(lodCluster);
             // }
         }

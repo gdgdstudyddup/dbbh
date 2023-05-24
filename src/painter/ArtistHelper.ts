@@ -89,10 +89,10 @@ export class ArtistHelper {
       let start = u32(mesh.lod01.x);
       let end = u32(mesh.lod01.y);
       let size = end - start;
-      for(var i = start; i < end; i++) {
+      for(var i = start; i <= end; i++) {
         passClusters[pCount + i - start] = inputClusters[i];
       }
-      atomicAdd(&allCount.count, size);
+      atomicAdd(&allCount.count, size + 1);
     } else {
       let fCount = atomicLoad(&allCount.failedMeshCount);
       failMesh[fCount] = mesh;
@@ -153,61 +153,11 @@ export class ArtistHelper {
     const viewProjMatrix = new Matrix4().multiplyMatrices(
       (this.activeCamera as PerspectiveCamera).projectionMatrix,
       (this.activeCamera as PerspectiveCamera).worldMatrixInverse);
-
-    viewProjMatrix.elements = [
-
-      // 0.7521949410438538,
-      // 0.07297936081886292,
-      // -0.844219982624054,
-      // -0.8357778191566467,
-      // 0.07297936081886292,
-      // 1.3678492307662964,
-      // 0.09870542585849762,
-      // 0.09771837294101715,
-      // -1.150349497795105,
-      // 0.13449779152870178,
-      // -0.5457598567008972,
-      // -0.5403022766113281,
-      // 0,
-      // 0,
-      // 3.0303030014038086,
-      // 4
-
-
-      1.3763818740844727,
-      0,
-      0,
-      0,
-      0,
-      1.3763818740844727,
-      0,
-      0,
-      0,
-      0,
-      -1.0101009607315063,
-      -1,
-      0,
-      0,
-      19.0908813476562,
-      10
-
-      // 1.3763818740844727,
-      // 0,
-      // 0,
-      // 0,
-      // 0,
-      // 1.3763818740844727,
-      // 0,
-      // 0,
-      // 0,
-      // 0,
-      // -1.0000200271606445,
-      // -1,
-      // 0,
-      // 1376.3818359375,
-      // -10.000200271606445,
-      // 0
-    ]
+    console.log('viewProjMatrix',
+      (this.activeCamera as PerspectiveCamera).projectionMatrix,
+      (this.activeCamera as PerspectiveCamera).worldMatrixInverse,
+      viewProjMatrix);
+   
     const cameraMatrixData = new Float32Array(viewProjMatrix.elements);
     this.device.queue.writeBuffer(
       cameraUniformBuffer,
@@ -250,10 +200,10 @@ export class ArtistHelper {
     console.log(instanceIDMap, meshBuffer, drawCallList, clusterArray);
     // we need to beginpass so we need desc..emmmm 
     // this function contains 4 steps [cull draw cull draw]', it will generate a depth map for oc culling of normal objects 
-    // await this.writeToGBuffer(drawCallList, meshBuffer, inputBuffer, reTestBuffer, cullPassedBuffer, cullFailedBuffer, artist);
-    await this.debugClusters(drawCallList, meshBuffer, inputBuffer, reTestBuffer, cullPassedBuffer, cullFailedBuffer, artist);
+    await this.writeToGBuffer(drawCallList, meshBuffer, inputBuffer, reTestBuffer, cullPassedBuffer, cullFailedBuffer, artist);
+    // await this.debugClusters(drawCallList, meshBuffer, inputBuffer, reTestBuffer, cullPassedBuffer, cullFailedBuffer, artist);
     // normal object should cull-test one time only, because the occlusion object that we using is cluster. 
-    // (artist as SimpleArtist).debug();
+    (artist as SimpleArtist).debug();
     return drawCallList;
   }
   getBufferFromClusterStructs(clusters: ClusterStruct[]) {

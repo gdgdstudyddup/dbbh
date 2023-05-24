@@ -98,11 +98,14 @@ export class SimpleArtist extends Artist {
             let vertexStride: u32 = 8;
             let instanceStride: u32 = 384 * vertexStride;
             let clusterStride: u32 = 16;
-            let baseOffset = instanceIdx * instanceStride + vertexIdx * vertexStride;
+            let clusterIndex = u32(clusterBuffer[instanceIdx * clusterStride]);
+            let baseOffset = clusterIndex * instanceStride + vertexIdx * vertexStride;
             let position = vec4(vertexBuffer[baseOffset], vertexBuffer[baseOffset + 1], vertexBuffer[baseOffset + 2], 1.0);
             var output : VertexOutput;
             let uboIndex = u32(clusterBuffer[instanceIdx * clusterStride + 1]);
-            output.fragPosition = (ubo.modelMatrix[0] * position).xyz;
+            if(instanceIdx<8){
+            output.fragPosition = (ubo.modelMatrix[uboIndex] * position).xyz;}
+            else {output.fragPosition = (ubo.modelMatrix[uboIndex] * position).xyz;}
             output.Position = camera.viewProjectionMatrix * vec4(output.fragPosition, 1.0);
             output.fragNormal = vec3(vertexBuffer[baseOffset + 3], vertexBuffer[baseOffset + 4], vertexBuffer[baseOffset + 5]);
             output.fragUV = vec2(vertexBuffer[baseOffset + 6], vertexBuffer[baseOffset + 7]);
@@ -132,7 +135,7 @@ export class SimpleArtist extends Artist {
             var output : GBufferOutput;
             output.position = vec4(fragPosition, 1.0);
             output.normal = vec4(fragNormal, 1.0);
-            output.albedo = vec4(c, c, c, 1.0);
+            output.albedo = vec4(1.0,c,c, 1.0);
           
             return output;
           }`;
@@ -225,12 +228,12 @@ export class SimpleArtist extends Artist {
                          let instanceStride: u32 = 384 * vertexStride;
                          let clusterStride: u32 = 16;
                          let baseOffset = instanceIdx * instanceStride + vertexIdx * vertexStride;
-                         let position1 = vec4(vertexBuffer[vertexIdx * vertexStride], vertexBuffer[vertexIdx * vertexStride + 1], vertexBuffer[vertexIdx * vertexStride + 2], 1.0);
+                         let position1 = vec4(vertexBuffer[baseOffset], vertexBuffer[baseOffset + 1], vertexBuffer[baseOffset + 2], 1.0);
                          const pos = array(
-                            // vec3(100.0, -100.0, 100.0), vec3(100.0, 100.0, 0.0), vec3(100.0, 100.0, 0.0),
-                            // vec3(-0.0, 0.0, -0.0), vec3(0.0, 0.0, -100.0), vec3(100.0, 0.0, 0.0),
-                            vec3(1.0, -1.0, 1.0), vec3(1.0, 1.0, 0.0), vec3(1.0, 1.0, 0.0),
-                            vec3(-0.0, 0.0, -0.0), vec3(0.0, 0.0, -1.0), vec3(1.0, 0.0, 0.0),
+                            vec3(100.0, -100.0, 100.0), vec3(100.0, 100.0, 0.0), vec3(100.0, 100.0, 0.0),
+                            vec3(-0.0, 0.0, -0.0), vec3(0.0, 0.0, -100.0), vec3(100.0, 0.0, 0.0),
+                            // vec3(1.0, -1.0, 1.0), vec3(1.0, 1.0, 0.0), vec3(1.0, 1.0, 0.0),
+                            // vec3(-0.0, 0.0, -0.0), vec3(0.0, 0.0, -1.0), vec3(1.0, 0.0, 0.0),
                             vec3(-1.0, 1.0, 0.0), vec3(1.0, -1.0, 0.0), vec3(1.0, 1.0, 0.0),
                           );
                          var position = vec4(pos[vertexIdx], 1.0);
@@ -239,8 +242,7 @@ export class SimpleArtist extends Artist {
                         //  }
                          var output : VertexOutput;
                          let uboIndex = u32(clusterBuffer[instanceIdx * clusterStride + 1]);
-                         let uu = ubo.modelMatrix[uboIndex];
-                         let test = camera.viewProjectionMatrix *  position;
+                         let test = camera.viewProjectionMatrix * ubo.modelMatrix[uboIndex] * position1;
                          output.Position = test;
                          return output;
                      }
@@ -317,8 +319,8 @@ export class SimpleArtist extends Artist {
         );
         debugViewPass.setPipeline(gPipeline);
         debugViewPass.setBindGroup(0, gBindGroup);
-        // debugViewPass.draw(384, clusterCount, 0, 0);
-        debugViewPass.draw(6, 1, 0, 0);
+        debugViewPass.draw(384, clusterCount, 0, 0);
+        // debugViewPass.draw(6, 1, 0, 0);
         debugViewPass.end();
         console.log('gg')
         device.queue.submit([commandEncoder.finish()]);
@@ -418,7 +420,7 @@ export class SimpleArtist extends Artist {
                         gBufferAlbedo,
                         vec2<i32>(floor(coord.xy)),
                         0
-                      );
+                      ) + 0.1;
                       return result;
                     }
                     `,

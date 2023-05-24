@@ -56,7 +56,7 @@ export class PerspectiveCamera extends Camera {
 
     updateProjectionMatrix() { // jitter to be continue;
 
-        this.projectionMatrix.makePerspective(DEG2RAD * this.fov, this.aspect, this.near, this.far);
+        this.projectionMatrix.makePerspective((Math.PI) / 180 * this.fov, this.aspect, this.near, this.far);
 
         this.projectionMatrixInverse.copy(this.projectionMatrix).invert();
 
