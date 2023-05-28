@@ -53,17 +53,16 @@ export class Mesh extends Drawable {
                 type
             })
         } else {
-            let index = 0;
-            const stride = this.geometry.stride;
-            for (let i = 0; i < this.geometry.vertices.length; i += stride) {
-                for (let idx = 0; idx < stride; idx++) {
-                    data.push(this.geometry.vertices[i + idx]);
+            const vertexCount = this.geometry.vertices.length / oldStride;
+            for (let i = 0; i < vertexCount; i++) {
+                for (let idx = 0; idx < oldStride; idx++) {
+                    data.push(this.geometry.vertices[i * oldStride + idx])
                 }
                 for (let idx = 0; idx < size; idx++) {
-                    data.push(newData[index + idx])
+                    data.push(newData[i * size + idx])
                 }
-                index++;
             }
+
             this.geometry.stride = oldStride + size;
             this.geometry.vertices = new Float32Array(data);
             this.geometry.verticesInfo.push({
@@ -138,7 +137,7 @@ export class Mesh extends Drawable {
                         triangleCounts++;
                     }
                 }
-                console.log('lodCluster',lodCluster);
+                // console.log('lodCluster', lodCluster);
             } else {
                 for (let i = 0; i < vertices.length; i++) {
                     lodCluster.push(vertices[i]);
@@ -146,12 +145,12 @@ export class Mesh extends Drawable {
                 triangleCounts = vertices.length / geometry.stride / 3;
             }
             const needVerticesCounts = (Mesh.CLUSTER_SIZE - triangleCounts % Mesh.CLUSTER_SIZE) * 3;
-            console.log('triangleCounts, needVerticesCounts', triangleCounts, needVerticesCounts,lodCluster.length);
+            // console.log('triangleCounts, needVerticesCounts', triangleCounts, needVerticesCounts, lodCluster.length);
 
             for (let i = 0; i < needVerticesCounts; i++) {
                 for (let offset = 0; offset < geometry.stride; offset++) { lodCluster.push(0.0); }
             }
-            console.log('stride',geometry.stride,lodCluster.length);
+            // console.log('stride', geometry.stride, lodCluster.length);
             clusters[level] = new Float32Array(lodCluster);
             // }
         }

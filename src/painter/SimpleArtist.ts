@@ -133,7 +133,7 @@ export class SimpleArtist extends Artist {
             var output : GBufferOutput;
             output.position = vec4(fragPosition, 1.0);
             output.normal = vec4(fragNormal, 1.0);
-            output.albedo = vec4(1.0, 0.0, 0.0, 1.0);
+            output.albedo = vec4(c,c,c, 1.0);
           
             return output;
           }`;
@@ -388,38 +388,27 @@ export class SimpleArtist extends Artist {
                     
                     @fragment
                     fn main(
-                      @builtin(position) coord : vec4<f32>
+                        @builtin(position) coord : vec4<f32>
                     ) -> @location(0) vec4<f32> {
-                      var result : vec4<f32>;
-                      let c = coord.xy / vec2<f32>(canvasSizeWidth, canvasSizeHeight);
-                    //   if (c.x < 0.33333) {
-                    //     result = textureLoad(
-                    //       gBufferPosition,
-                    //       vec2<i32>(floor(coord.xy)),
-                    //       0
-                    //     );
-                    //   } else if (c.x < 0.66667) {
-                    //     result = textureLoad(
-                    //       gBufferNormal,
-                    //       vec2<i32>(floor(coord.xy)),
-                    //       0
-                    //     );
-                    //     result.x = (result.x + 1.0) * 0.5;
-                    //     result.y = (result.y + 1.0) * 0.5;
-                    //     result.z = (result.z + 1.0) * 0.5;
-                    //   } else {
-                    //     result = textureLoad(
-                    //       gBufferAlbedo,
-                    //       vec2<i32>(floor(coord.xy)),
-                    //       0
-                    //     );
-                    //   }
-                      result = textureLoad(
-                        gBufferNormal,
-                        vec2<i32>(floor(coord.xy)),
-                        0
-                      ) + 0.1;
-                      return result;
+                        var result : vec4<f32>;
+                        let c = coord.xy / vec2<f32>(canvasSizeWidth, canvasSizeHeight);
+                    
+                        if(c.y  < c.x)
+                        {
+                            result = textureLoad(
+                            gBufferAlbedo,
+                            vec2<i32>(floor(coord.xy)),
+                            0
+                            ) ;
+                        } else 
+                        {
+                            result = textureLoad(
+                            gBufferNormal,
+                            vec2<i32>(floor(coord.xy)),
+                            0
+                            ) ;
+                        }
+                        return result;
                     }
                     `,
                 }),
