@@ -78,12 +78,18 @@ export class Party {
                     a:atomic<u32>
                   };
                   @group(0) @binding(0) var<storage, read_write> data: A;
+                  @group(0) @binding(1) var s: sampler;
+                  @group(0) @binding(2) var t: texture_depth_2d;
             
                   @compute @workgroup_size(1) fn computeSomething(
                     @builtin(global_invocation_id) id: vec3<u32>
                   ) {
                     let i = id.x;
                     atomicAdd(&data.a, 10);
+
+                    let res = textureSampleLevel(t,s, vec2<f32>(0.0,0.0), 1);
+                    if(res<0.1)
+                    {atomicAdd(&data.a, 999);}
                     // if(i == 0){
                         // data[0].test0 = vec4f(6.0,6.0,6.0,1.0);
                     // } else  {
@@ -93,9 +99,40 @@ export class Party {
                 `,
             });
 
+            const depthTextureDesc: GPUTextureDescriptor = {
+                size: [this.canvas.width, this.canvas.height, 1],
+                dimension: '2d',
+                format: 'depth24plus',
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING
+            };
+            const depthTexture = device.createTexture(depthTextureDesc);
+            const depthTextureView = depthTexture.createView();
+            const layout = device.createBindGroupLayout({
+                entries: [
+                    {
+                        binding: 0,
+                        visibility: GPUShaderStage.COMPUTE,
+                        buffer: {
+                            type: 'storage',
+                        }
+                    },
+                    {
+                        binding: 1,
+                        visibility: GPUShaderStage.COMPUTE,
+                        sampler: {}
+                    },
+                    {
+                        binding: 2,
+                        visibility: GPUShaderStage.COMPUTE,
+                        texture: {
+                            sampleType: 'depth',
+                        }
+                    },
+                ]
+            });
             const pipeline = device.createComputePipeline({
                 label: 'doubling compute pipeline',
-                layout: 'auto',
+                layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
                 compute: {
                     module,
                     entryPoint: 'computeSomething',
@@ -123,11 +160,14 @@ export class Party {
 
             // Setup a bindGroup to tell the shader which
             // buffer to use for the computation
+
             const bindGroup = device.createBindGroup({
                 label: 'bindGroup for work buffer',
-                layout: pipeline.getBindGroupLayout(0),
+                layout: layout,
                 entries: [
                     { binding: 0, resource: { buffer: workBuffer } },
+                    { binding: 1, resource: device.createSampler() },
+                    { binding: 2, resource: depthTextureView },
                 ],
             });
 
