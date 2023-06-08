@@ -179,6 +179,19 @@ export class SimpleArtist extends Artist {
             }
             gBufferPass.setBindGroup(0, this.gBufferUBOBindGroup);
             gBufferPass.draw(384, clusterCount, 0, 0);
+            // we can do it in cs and drawing buffer here directly.
+            // let test = new Uint32Array(5);
+            // test[0] = 384;
+            // test[1] = 384;
+            // test[2] = clusterCount;
+            // test[3] = 0;
+            // test[4] = 0;
+            // let testBuffer = device.createBuffer({
+            //     size: test.byteLength,
+            //     usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST
+            // });
+            // device.queue.writeBuffer(testBuffer, 0, test);
+            // gBufferPass.drawIndirect(testBuffer, 1*4);
         }
         gBufferPass.end();
         device.queue.submit([commandEncoder.finish()]);
