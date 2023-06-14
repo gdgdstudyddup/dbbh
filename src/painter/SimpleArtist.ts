@@ -85,11 +85,13 @@ export class SimpleArtist extends Artist {
             @location(0) fragPosition: vec3<f32>,  // position in world space
             @location(1) fragNormal: vec3<f32>,    // normal in world space
             @location(2) fragUV: vec2<f32>,
+            @location(3) fragID: f32,
         };
         @group(0) @binding(0) var<storage, read> vertexBuffer:  array<f32>;
         @group(0) @binding(1) var<storage, read> clusterBuffer: array<f32>;
         @group(0) @binding(2) var<storage, read> ubo: TransformUniforms;
         @group(0) @binding(3) var<uniform> camera: Camera;
+        @group(0) @binding(4) var<storage, read> mIDs: array<f32>;
         @vertex
         fn main(
             @builtin(vertex_index) vertexIdx : u32,
@@ -107,6 +109,7 @@ export class SimpleArtist extends Artist {
             output.Position = camera.viewProjectionMatrix * vec4(output.fragPosition, 1.0);
             output.fragNormal = vec3(vertexBuffer[baseOffset + 3], vertexBuffer[baseOffset + 4], vertexBuffer[baseOffset + 5]);
             output.fragUV = vec2(vertexBuffer[baseOffset + 6], vertexBuffer[baseOffset + 7]);
+            output.fragID = mIDs[uboIndex];
             return output;
         }
         `;
@@ -124,7 +127,8 @@ export class SimpleArtist extends Artist {
           fn main(
             @location(0) fragPosition: vec3<f32>,
             @location(1) fragNormal: vec3<f32>,
-            @location(2) fragUV : vec2<f32>
+            @location(2) fragUV : vec2<f32>,
+            @location(3) fragID: f32,
           ) -> GBufferOutput {
             
             let uv = floor(30.0 * fragUV);
@@ -133,7 +137,7 @@ export class SimpleArtist extends Artist {
             var output : GBufferOutput;
             output.position = vec4(fragPosition, 1.0);
             output.normal = vec4(fragNormal, 1.0);
-            output.albedo = vec4(c,c,c, 1.0);
+            output.albedo = vec4(fragID,fragID,fragID, 1.0);
           
             return output;
           }`;
@@ -172,6 +176,12 @@ export class SimpleArtist extends Artist {
                             binding: 3,
                             resource: {
                                 buffer: drawCallList.cameraGPUBuffer,
+                            },
+                        },
+                        {
+                            binding: 4,
+                            resource: {
+                                buffer: drawCallList.mIDBuffer,
                             },
                         },
                     ],

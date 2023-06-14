@@ -49,6 +49,7 @@ export class ClusterMaintainer {
     // 33554431
     vertexBuffer = new Float32Array(33554431); // max buffer size limit (268435456).
     uboBuffer: number[] = [];
+    materialIDBuffer: number[] = [];
     clusters: ClusterStruct[] = [];
     meshBuffer = new Float32Array(); // 
     meshClusterOffset: number[] = [];
@@ -75,6 +76,7 @@ export class ClusterMaintainer {
             for (let i = 0; i < meshes.length; i++) {
                 const mesh = meshes[i];
                 this.uboBuffer.push(...mesh.worldMatrix.elements);
+                this.materialIDBuffer.push(mesh.getMaterialID());
                 // mesh.updateWorldMatrix() // already updated
                 mesh.geometry.computeWorldBox(mesh.worldMatrix);
                 // if(mesh.material instanceof Array){
@@ -152,6 +154,7 @@ export class ClusterMaintainer {
             cullFailedBuffer: this.cullFailedBuffer,
             vertexBuffer,
             uboBuffer: this.uboBuffer,
+            materialIDBuffer:this.materialIDBuffer,
             outOfMemoryObjects
         }
 

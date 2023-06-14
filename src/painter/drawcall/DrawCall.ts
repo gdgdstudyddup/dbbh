@@ -29,4 +29,5 @@ export class DrawCallList {
     clustersGPUBuffer: GPUBuffer;
     cameraGPUBuffer:GPUBuffer;
     uboGPUBuffer:GPUBuffer;
+    mIDBuffer: GPUBuffer;
 }

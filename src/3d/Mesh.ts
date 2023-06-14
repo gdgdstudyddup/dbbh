@@ -169,4 +169,11 @@ export class Mesh extends Drawable {
     estimateMaterialMemory() {
 
     }
+
+    getMaterialID() {
+        if (Array.isArray(this.material)) {
+            return this.material[0].id;
+        }
+        return this.material.id;
+    }
 }

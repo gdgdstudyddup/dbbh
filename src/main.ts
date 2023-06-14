@@ -8,8 +8,9 @@ import { Vector3 } from './math/Vector3';
 // const renderer = new Renderer(canvas);
 // renderer.start();
 const geometry = new DBBH.Geometry();
-const material = new DBBH.Material();
-const mesh0 = new DBBH.Mesh(geometry, material);
+const material0 = new DBBH.Material();
+material0.id = 50/255;
+const mesh0 = new DBBH.Mesh(geometry, material0);
 
 {
     const { position, normal, uv, index } = SphereGeometryInfo(100);
@@ -22,8 +23,10 @@ const mesh0 = new DBBH.Mesh(geometry, material);
     mesh0.position.set(0, 0, 0);
 }
 
+const material1 = new DBBH.Material();
+material1.id = 100/255;
 const geometry1 = new DBBH.Geometry();
-const mesh1 = new DBBH.Mesh(geometry1, material);
+const mesh1 = new DBBH.Mesh(geometry1, material1);
 {
     const { position, normal, uv, index } = TorusKnotGeometryInfo();
     mesh1.setVertices('position', 3, 'f32', position);
@@ -31,12 +34,14 @@ const mesh1 = new DBBH.Mesh(geometry1, material);
     mesh1.setVertices('uv', 2, 'f32', uv);
     mesh1.setIndex(index);
     // mesh1.removeVertices('normal');
-    mesh1.position.set(-288, 0, 200);
+    mesh1.position.set(-388, 0, 250);
     // mesh1.quaternion.setFromAxisAngle(new Vector3(0,0,1), -0.7);
 }
 
+const material2 = new DBBH.Material();
+material2.id = 150/255;
 const geometry2 = new DBBH.Geometry();
-const mesh2 = new DBBH.Mesh(geometry2, material);
+const mesh2 = new DBBH.Mesh(geometry2, material2);
 {
     const { position, normal, uv, index } = BoxGeometryInfo(150, 150, 150);
     mesh2.setVertices('position', 3, 'f32', position);
@@ -44,7 +49,7 @@ const mesh2 = new DBBH.Mesh(geometry2, material);
     mesh2.setVertices('uv', 2, 'f32', uv);
     mesh2.setIndex(index);
     // mesh2.removeVertices('normal');
-    mesh2.position.set(288, 0, -100);
+    mesh2.position.set(388, 0, -200);
     mesh2.quaternion.setFromAxisAngle(new Vector3(0,0,1), 3.14);
 }
 

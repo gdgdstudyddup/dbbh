@@ -141,6 +141,7 @@ export class ArtistHelper {
       cullFailedBuffer, // its meshes.
       vertexBuffer,
       uboBuffer,
+      materialIDBuffer,
       outOfMemoryObjects } = this.clusterMaintainer.maintain(clusterArray);
     //TODO!! set needToResize here.
 
@@ -178,6 +179,21 @@ export class ArtistHelper {
       modelData.byteLength
     );
 
+    const mIDUniformBuffer = this.device.createBuffer({
+      size: 4 * 100,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+
+    console.log('materialIDBuffer',materialIDBuffer)
+    const mIDData = new Float32Array(materialIDBuffer);
+    this.device.queue.writeBuffer( //  use subUpdate later
+      mIDUniformBuffer,
+      0,
+      mIDData.buffer,
+      mIDData.byteOffset,
+      mIDData.byteLength
+    );
+
     if (drawCallList.vertexGPUBuffer === undefined) {
       const vertexGPUBuffer = this.device.createBuffer({
         label: 'vertex buffer',
@@ -192,6 +208,7 @@ export class ArtistHelper {
     }
     console.log('vertexBuffer', vertexBuffer, modelData, cameraMatrixData);
     drawCallList.uboGPUBuffer = modelUniformBuffer;
+    drawCallList.mIDBuffer = mIDUniformBuffer;
     drawCallList.cameraGPUBuffer = cameraUniformBuffer;
     drawCallList.opaque.push(...outOfMemoryObjects);
     console.log(instanceIDMap, meshBuffer, drawCallList, clusterArray);
