@@ -408,7 +408,7 @@ export class SimpleArtist extends Artist {
                             // actually it is the material id
                             output.depth = depth;
                         // }
-                        output.depth = 150.0/2345678.0;
+                        //output.depth = 150.0/2345678.0;
                         if(c.y  < c.x)
                         {
                             output.color = textureLoad(
