@@ -45,7 +45,7 @@ export class SimpleArtist extends Artist {
                 depthStencil: {
                     depthWriteEnabled: true,
                     depthCompare: 'less',
-                    format: 'depth24plus',
+                    format: 'depth32float',
                 },
             });
 
@@ -135,7 +135,7 @@ export class SimpleArtist extends Artist {
             let c = 0.2 + 0.5 * ((uv.x + uv.y) - 2.0 * floor((uv.x + uv.y) / 2.0));
           
             var output : GBufferOutput;
-            output.position = vec4(fragPosition, fragID/2000.0);
+            output.position = vec4(fragPosition, fragID/2345678.0);
             output.normal = vec4(fragNormal, 1.0);
             output.albedo = vec4(c,c,c, 1.0);
           
@@ -214,7 +214,7 @@ export class SimpleArtist extends Artist {
     writeMaterialIDToDepth() {
         const materialDepthTexture = this.device.createTexture({
             size: [this.canvas.width, this.canvas.height],
-            format: 'depth24plus',
+            format: 'depth32float',
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
         });
         const materialDepthView = materialDepthTexture.createView();
@@ -298,7 +298,7 @@ export class SimpleArtist extends Artist {
             depthStencil: {
                 depthWriteEnabled: true,
                 depthCompare: 'less',
-                format: 'depth24plus',
+                format: 'depth32float',
             },
             primitive,
         });
@@ -408,7 +408,7 @@ export class SimpleArtist extends Artist {
                             // actually it is the material id
                             output.depth = depth;
                         // }
-                        output.depth = 100.0/2000.0;
+                        output.depth = 150.0/2345678.0;
                         if(c.y  < c.x)
                         {
                             output.color = textureLoad(
@@ -443,7 +443,7 @@ export class SimpleArtist extends Artist {
             depthStencil: {
                 depthWriteEnabled: true,
                 depthCompare: 'equal',
-                format: 'depth24plus',
+                format: 'depth32float',
             },
             primitive,
         });

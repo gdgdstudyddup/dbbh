@@ -102,7 +102,7 @@ export class Party {
             const depthTextureDesc: GPUTextureDescriptor = {
                 size: [this.canvas.width, this.canvas.height, 1],
                 dimension: '2d',
-                format: 'depth24plus',
+                format: 'depth32float',
                 usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING
             };
             const depthTexture = device.createTexture(depthTextureDesc);

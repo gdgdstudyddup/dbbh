@@ -37,7 +37,7 @@ export class RenderPaper {
         ];
         const depthTexture = device.createTexture({
             size: [width, height],
-            format: 'depth24plus',
+            format: 'depth32float',
             usage: GPUTextureUsage.RENDER_ATTACHMENT,
         });
         const depthView = depthTexture.createView();
