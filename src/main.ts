@@ -9,7 +9,7 @@ import { Vector3 } from './math/Vector3';
 // renderer.start();
 const geometry = new DBBH.Geometry();
 const material0 = new DBBH.Material();
-material0.id = 50/255;
+material0.id = 50/1;
 const mesh0 = new DBBH.Mesh(geometry, material0);
 
 {
@@ -24,7 +24,7 @@ const mesh0 = new DBBH.Mesh(geometry, material0);
 }
 
 const material1 = new DBBH.Material();
-material1.id = 100/255;
+material1.id = 100/1;
 const geometry1 = new DBBH.Geometry();
 const mesh1 = new DBBH.Mesh(geometry1, material1);
 {
@@ -39,7 +39,7 @@ const mesh1 = new DBBH.Mesh(geometry1, material1);
 }
 
 const material2 = new DBBH.Material();
-material2.id = 150/255;
+material2.id = 150/1;
 const geometry2 = new DBBH.Geometry();
 const mesh2 = new DBBH.Mesh(geometry2, material2);
 {

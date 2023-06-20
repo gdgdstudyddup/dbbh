@@ -135,9 +135,9 @@ export class SimpleArtist extends Artist {
             let c = 0.2 + 0.5 * ((uv.x + uv.y) - 2.0 * floor((uv.x + uv.y) / 2.0));
           
             var output : GBufferOutput;
-            output.position = vec4(fragPosition, 1.0);
+            output.position = vec4(fragPosition, fragID/2000.0);
             output.normal = vec4(fragNormal, 1.0);
-            output.albedo = vec4(fragID,fragID,fragID, 1.0);
+            output.albedo = vec4(c,c,c, 1.0);
           
             return output;
           }`;
@@ -211,7 +211,121 @@ export class SimpleArtist extends Artist {
 
     }
 
+    writeMaterialIDToDepth() {
+        const materialDepthTexture = this.device.createTexture({
+            size: [this.canvas.width, this.canvas.height],
+            format: 'depth24plus',
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+        });
+        const materialDepthView = materialDepthTexture.createView();
+        const primitive: GPUPrimitiveState = {
+            topology: 'triangle-list',
+            cullMode: 'back',
+        };
+        const device = this.device;
+        const bindGroupLayout = device.createBindGroupLayout({
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    texture: {
+                        sampleType: 'unfilterable-float',
+                    },
+                },
+            ],
+        });
+
+        const bindGroup = device.createBindGroup({
+            layout: bindGroupLayout,
+            entries: [
+                {
+                    binding: 0,
+                    resource: this.gBufferPaper.colors[0],
+                }
+            ],
+        });
+        const pipeline = device.createRenderPipeline({
+            layout: device.createPipelineLayout({
+                bindGroupLayouts: [bindGroupLayout],
+            }),
+            vertex: {
+                module: device.createShaderModule({
+                    code: `
+                    @vertex
+                    fn main(
+                      @builtin(vertex_index) VertexIndex : u32
+                    ) -> @builtin(position) vec4<f32> {
+                      const pos = array(
+                        vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0),
+                        vec2(-1.0, 1.0), vec2(1.0, -1.0), vec2(1.0, 1.0),
+                      );
+                    
+                      return vec4<f32>(pos[VertexIndex], 0.0, 1.0);
+                    }`,
+                }),
+                entryPoint: 'main',
+            },
+            fragment: {
+                module: device.createShaderModule({
+                    code: `
+                    @group(0) @binding(0) var gBufferPosition: texture_2d<f32>;
+                    override canvasSizeWidth: f32;
+                    override canvasSizeHeight: f32;
+                    
+                    struct FragmentOutput {
+                        @builtin(frag_depth) depth: f32,
+                      }
+                    @fragment
+                    fn main(
+                        @builtin(position) coord : vec4<f32>
+                    ) -> FragmentOutput {
+                        var output : FragmentOutput;
+                        let c = coord.xy / vec2<f32>(canvasSizeWidth, canvasSizeHeight);
+                        output.depth = textureLoad( gBufferPosition, vec2<i32>(floor(coord.xy)), 0 ).a;
+                        // output.depth = 0.5;
+                        return output;
+                    }
+                    `,
+                }),
+                entryPoint: 'main',
+                targets: [],
+                constants: {
+                    canvasSizeWidth: this.canvas.width,
+                    canvasSizeHeight: this.canvas.height,
+                },
+
+            },
+            depthStencil: {
+                depthWriteEnabled: true,
+                depthCompare: 'less',
+                format: 'depth24plus',
+            },
+            primitive,
+        });
+        const commandEncoder = device.createCommandEncoder();
+        const quadPassDescriptor: GPURenderPassDescriptor = {
+            colorAttachments: [],
+            depthStencilAttachment: {
+                view: materialDepthView,
+                depthClearValue: 1,
+                depthLoadOp: 'clear',
+                depthStoreOp: 'store',
+            }
+        };
+        const pass = commandEncoder.beginRenderPass(
+            quadPassDescriptor
+        );
+        pass.setPipeline(pipeline);
+        pass.setBindGroup(0, bindGroup);
+        pass.draw(6);
+        pass.end();
+        device.queue.submit([commandEncoder.finish()]);
+        return materialDepthView;
+    }
+
     debug() {
+        const materialDepthView = this.writeMaterialIDToDepth();
+
         const primitive: GPUPrimitiveState = {
             topology: 'triangle-list',
             cullMode: 'back',
@@ -273,30 +387,44 @@ export class SimpleArtist extends Artist {
                     
                     override canvasSizeWidth: f32;
                     override canvasSizeHeight: f32;
-                    
+                    struct FragmentOutput {
+                        @builtin(frag_depth) depth: f32,
+                        @location(0) color : vec4<f32>
+                      }
                     @fragment
                     fn main(
                         @builtin(position) coord : vec4<f32>
-                    ) -> @location(0) vec4<f32> {
+                    ) -> FragmentOutput {
                         var result : vec4<f32>;
                         let c = coord.xy / vec2<f32>(canvasSizeWidth, canvasSizeHeight);
-                    
+                        var output: FragmentOutput;
+                        let depth = textureLoad(
+                            gBufferPosition,
+                        vec2<i32>(floor(coord.xy)),
+                        0
+                        ).a;
+                        
+                        // if(c.x>900.0){
+                            // actually it is the material id
+                            output.depth = depth;
+                        // }
+                        output.depth = 100.0/2000.0;
                         if(c.y  < c.x)
                         {
-                            result = textureLoad(
-                            gBufferAlbedo,
+                            output.color = textureLoad(
+                                gBufferPosition,
                             vec2<i32>(floor(coord.xy)),
                             0
-                            ) ;
+                            ).aaaa ;
                         } else 
                         {
-                            result = textureLoad(
+                            output.color = textureLoad(
                             gBufferNormal,
                             vec2<i32>(floor(coord.xy)),
                             0
                             ) ;
                         }
-                        return result;
+                        return output;
                     }
                     `,
                 }),
@@ -310,6 +438,12 @@ export class SimpleArtist extends Artist {
                     canvasSizeWidth: this.canvas.width,
                     canvasSizeHeight: this.canvas.height,
                 },
+
+            },
+            depthStencil: {
+                depthWriteEnabled: true,
+                depthCompare: 'equal',
+                format: 'depth24plus',
             },
             primitive,
         });
@@ -343,6 +477,14 @@ export class SimpleArtist extends Artist {
                     storeOp: 'store',
                 },
             ],
+
+            // test depth output
+            depthStencilAttachment: {
+                view: materialDepthView,
+                depthClearValue: 1,
+                depthLoadOp: 'load',
+                depthStoreOp: 'store',
+            }
         };
         textureQuadPassDescriptor.colorAttachments[0].view = this.context
             .getCurrentTexture()
