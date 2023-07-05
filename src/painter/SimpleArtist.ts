@@ -343,19 +343,24 @@ export class SimpleArtist extends Artist {
             };
             @group(0) @binding(0) var<storage, read_write> data: array<A>;
             @group(0) @binding(1) var tID : texture_2d<f32>;
+            override canvasSizeWidth: u32;
+            override canvasSizeHeight: u32;
 
             @compute @workgroup_size(8, 8) fn computeSomething(
                 @builtin(global_invocation_id) id: vec3<u32>
             ) {
-                let uv = id.xy;
-                let mID = u32(textureLoad(tID, uv, 0).a);
+                if(id.x >= 0 && id.y>=0 && id.x < canvasSizeWidth && id.y < canvasSizeHeight)
+                {
+                    let uv = id.xy;
+                    let mID = u32(textureLoad(tID, uv, 0).a);
 
-                let global_index = uv / 8;
-                let width = global_index.x * 2;
-                let min_index = global_index.y * width + global_index.x * 2;
-                let max_index = min_index + 1;
-                atomicMin(&data[min_index].a, mID);
-                atomicMax(&data[max_index].a, mID);
+                    let global_index = uv / 8;
+                    let width = global_index.x * 2;
+                    let min_index = global_index.y * width + global_index.x * 2;
+                    let max_index = min_index + 1;
+                    atomicMin(&data[min_index].a, mID);
+                    atomicMax(&data[max_index].a, mID);
+                }
             }
             `,
         }
@@ -365,6 +370,10 @@ export class SimpleArtist extends Artist {
             compute: {
                 module,
                 entryPoint: 'computeSomething',
+                constants: {
+                    canvasSizeWidth: this.canvas.width,
+                    canvasSizeHeight: this.canvas.height,
+                },
             },
         });
         const bindGroup = device.createBindGroup({
