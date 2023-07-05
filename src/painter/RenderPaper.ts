@@ -47,10 +47,10 @@ export class RenderPaper {
                     view: gBufferTextureViews[0],
 
                     clearValue: {
-                        r: 0.1,
-                        g: 0.1,
-                        b: 0.1,
-                        a: 1.0,
+                        r: 0,
+                        g: 0,
+                        b: 0,
+                        a: 0,
                     },
                     loadOp: 'clear',
                     storeOp: 'store',
@@ -58,14 +58,14 @@ export class RenderPaper {
                 {
                     view: gBufferTextureViews[1],
 
-                    clearValue: { r: 0.0, g: 0.0, b: 1.0, a: 1.0 },
+                    clearValue: { r: 0, g: 0, b: 0, a: 0 },
                     loadOp: 'clear',
                     storeOp: 'store',
                 },
                 {
                     view: gBufferTextureViews[2],
 
-                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                    clearValue: { r: 0, g: 0, b: 0, a: 0 },
                     loadOp: 'clear',
                     storeOp: 'store',
                 },

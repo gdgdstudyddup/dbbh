@@ -135,7 +135,7 @@ export class SimpleArtist extends Artist {
             let c = 0.2 + 0.5 * ((uv.x + uv.y) - 2.0 * floor((uv.x + uv.y) / 2.0));
           
             var output : GBufferOutput;
-            output.position = vec4(fragPosition, fragID/2345678.0);
+            output.position = vec4(fragPosition, fragID);
             output.normal = vec4(fragNormal, 1.0);
             output.albedo = vec4(c,c,c, 1.0);
           
@@ -281,7 +281,7 @@ export class SimpleArtist extends Artist {
                     ) -> FragmentOutput {
                         var output : FragmentOutput;
                         let c = coord.xy / vec2<f32>(canvasSizeWidth, canvasSizeHeight);
-                        output.depth = textureLoad( gBufferPosition, vec2<i32>(floor(coord.xy)), 0 ).a;
+                        output.depth = textureLoad( gBufferPosition, vec2<i32>(floor(coord.xy)), 0 ).a / 8888888.0;
                         // output.depth = 0.5;
                         return output;
                     }
@@ -323,7 +323,361 @@ export class SimpleArtist extends Artist {
         return materialDepthView;
     }
 
+    generateIDTable() {
+        const device = this.device;
+        const idRange = new Uint32Array(Math.ceil(this.canvas.width / 8) * 2 * Math.ceil(this.canvas.height / 8));
+        for (let i = 0; i < idRange.length; i += 2) {
+            idRange[i] = 9999999;
+        }
+        console.log('idRange',idRange)
+        let buffer = device.createBuffer({
+            size: idRange.byteLength,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        });
+        device.queue.writeBuffer(buffer, 0, idRange);
+        const module = device.createShaderModule({
+            label: 'generate compute module',
+            code: `
+            struct A {
+                a:atomic<u32>
+            };
+            @group(0) @binding(0) var<storage, read_write> data: array<A>;
+            @group(0) @binding(1) var tID : texture_2d<f32>;
+
+            @compute @workgroup_size(8, 8) fn computeSomething(
+                @builtin(global_invocation_id) id: vec3<u32>
+            ) {
+                let uv = id.xy;
+                let mID = u32(textureLoad(tID, uv, 0).a);
+
+                let global_index = uv / 8;
+                let width = global_index.x * 2;
+                let min_index = global_index.y * width + global_index.x * 2;
+                let max_index = min_index + 1;
+                atomicMin(&data[min_index].a, mID);
+                atomicMax(&data[max_index].a, mID);
+            }
+            `,
+        }
+        );
+        const pipeline = device.createComputePipeline({
+            layout: 'auto',
+            compute: {
+                module,
+                entryPoint: 'computeSomething',
+            },
+        });
+        const bindGroup = device.createBindGroup({
+            layout: pipeline.getBindGroupLayout(0),
+            entries: [
+                { binding: 0, resource: { buffer } },
+                { binding: 1, resource: this.gBufferPaper.colors[0] }
+            ]
+        })
+
+        const resultBuffer = device.createBuffer({
+            label: 'result buffer',
+            size: idRange.byteLength,
+            usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+        });
+        // begin
+        const encoder = device.createCommandEncoder({
+            label: 'generate id encoder',
+        });
+        const pass = encoder.beginComputePass({
+            label: 'generate id compute pass',
+        });
+
+        pass.setPipeline(pipeline);
+        pass.setBindGroup(0, bindGroup);
+        pass.dispatchWorkgroups(Math.ceil(this.canvas.width / 8), Math.ceil(this.canvas.height / 8));
+        pass.end();
+
+        // encoder.copyBufferToBuffer(buffer, 0, resultBuffer, 0, resultBuffer.size);
+        const commandBuffer = encoder.finish();
+        device.queue.submit([commandBuffer]);
+
+        // await resultBuffer.mapAsync(GPUMapMode.READ);
+        // const result = new Uint32Array(resultBuffer.getMappedRange().slice(0));
+        // resultBuffer.unmap();
+        // console.log('idmap', result); // 16 0
+        // for (let i = 0; i < result.length; i++) {
+        //     if (result[i] !== 0 && result[i] != 9999999) console.log(result[i])
+        // }
+
+        return buffer;
+    }
     debug() {
+        const materialDepthView = this.writeMaterialIDToDepth();
+        const idTable = this.generateIDTable();
+
+        const primitive: GPUPrimitiveState = {
+            topology: 'triangle-list',
+            cullMode: 'back',
+        };
+        const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+        const device = this.device;
+        const gBufferTexturesBindGroupLayout = device.createBindGroupLayout({
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    texture: {
+                        sampleType: 'unfilterable-float',
+                    },
+                },
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    texture: {
+                        sampleType: 'unfilterable-float',
+                    },
+                },
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    texture: {
+                        sampleType: 'unfilterable-float',
+                    },
+                },
+            ],
+        });
+        const gBuffersDebugViewPipeline = device.createRenderPipeline({
+            layout: device.createPipelineLayout({
+                bindGroupLayouts: [gBufferTexturesBindGroupLayout],
+            }),
+            vertex: {
+                module: device.createShaderModule({
+                    code: `
+                    @vertex
+                    fn main(
+                      @builtin(vertex_index) VertexIndex : u32
+                    ) -> @builtin(position) vec4<f32> {
+                      const pos = array(
+                        vec2(-1.0, -1.0), vec2(0.0, -1.0), vec2(-1.0, 1.0),
+                        vec2(-1.0, 1.0), vec2(0.0, -1.0), vec2(0.0, 1.0),
+                      );
+                    
+                      return vec4<f32>(pos[VertexIndex], 0.0, 1.0);
+                    }`,
+                }),
+                entryPoint: 'main',
+            },
+            fragment: {
+                module: device.createShaderModule({
+                    code: `
+                    @group(0) @binding(0) var gBufferPosition: texture_2d<f32>;
+                    @group(0) @binding(1) var gBufferNormal: texture_2d<f32>;
+                    @group(0) @binding(2) var gBufferAlbedo: texture_2d<f32>;
+                    
+                    override canvasSizeWidth: f32;
+                    override canvasSizeHeight: f32;
+                    struct FragmentOutput {
+                        @builtin(frag_depth) depth: f32,
+                        @location(0) color : vec4<f32>
+                    }
+                    @fragment
+                    fn main(
+                        @builtin(position) coord : vec4<f32>
+                    ) -> FragmentOutput {
+                        var result : vec4<f32>;
+                        let c = coord.xy / vec2<f32>(canvasSizeWidth, canvasSizeHeight);
+                        var output: FragmentOutput;
+                        let depth = textureLoad(
+                            gBufferPosition,
+                        vec2<i32>(floor(coord.xy)),
+                        0
+                        ).a;
+                        
+                        // if(c.x>900.0){
+                            // actually it is the material id
+                            output.depth = depth;
+                        // }
+                        output.depth = 150.0 / 8888888.0;
+                        if(c.y  < c.x)
+                        {
+                            output.color = textureLoad(
+                                gBufferAlbedo,
+                            vec2<i32>(floor(coord.xy)),
+                            0
+                            ) ;
+                        } else 
+                        {
+                            output.color = textureLoad(
+                            gBufferNormal,
+                            vec2<i32>(floor(coord.xy)),
+                            0
+                            ) ;
+                        }
+                        return output;
+                    }
+                    `,
+                }),
+                entryPoint: 'main',
+                targets: [
+                    {
+                        format: presentationFormat,
+                    },
+                ],
+                constants: {
+                    canvasSizeWidth: this.canvas.width,
+                    canvasSizeHeight: this.canvas.height,
+                },
+
+            },
+            depthStencil: {
+                depthWriteEnabled: true,
+                depthCompare: 'equal',
+                format: 'depth32float',
+            },
+            primitive,
+        });
+
+        const gBuffersDebugViewPipelineR = device.createRenderPipeline({
+            layout: device.createPipelineLayout({
+                bindGroupLayouts: [gBufferTexturesBindGroupLayout],
+            }),
+            vertex: {
+                module: device.createShaderModule({
+                    code: `
+                    @vertex
+                    fn main(
+                      @builtin(vertex_index) VertexIndex : u32
+                    ) -> @builtin(position) vec4<f32> {
+                      const pos = array(
+                        vec2(0.0, -1.0), vec2(1.0, -1.0), vec2(0.0, 1.0),
+                        vec2(0.0, 1.0), vec2(1.0, -1.0), vec2(1.0, 1.0),
+                      );
+                    
+                      return vec4<f32>(pos[VertexIndex], 0.0, 1.0);
+                    }`,
+                }),
+                entryPoint: 'main',
+            },
+            fragment: {
+                module: device.createShaderModule({
+                    code: `
+                    @group(0) @binding(0) var gBufferPosition: texture_2d<f32>;
+                    @group(0) @binding(1) var gBufferNormal: texture_2d<f32>;
+                    @group(0) @binding(2) var gBufferAlbedo: texture_2d<f32>;
+                    
+                    override canvasSizeWidth: f32;
+                    override canvasSizeHeight: f32;
+                    struct FragmentOutput {
+                        @builtin(frag_depth) depth: f32,
+                        @location(0) color : vec4<f32>
+                      }
+                    @fragment
+                    fn main(
+                        @builtin(position) coord : vec4<f32>
+                    ) -> FragmentOutput {
+                        var result : vec4<f32>;
+                        let c = coord.xy / vec2<f32>(canvasSizeWidth, canvasSizeHeight);
+                        var output: FragmentOutput;
+                        let depth = textureLoad(
+                            gBufferPosition,
+                        vec2<i32>(floor(coord.xy)),
+                        0
+                        ).a;
+                        
+                        // if(c.x>900.0){
+                            // actually it is the material id
+                            output.depth = depth;
+                        // }
+                        output.depth = 150.0 / 8888888.0;
+                        if(c.y  < c.x)
+                        {
+                            output.color = textureLoad(
+                                gBufferAlbedo,
+                            vec2<i32>(floor(coord.xy)),
+                            0
+                            ); //+0.1;
+                        } else 
+                        {
+                            output.color = textureLoad(
+                            gBufferNormal,
+                            vec2<i32>(floor(coord.xy)),
+                            0
+                            ) ;
+                        }
+                        return output;
+                    }
+                    `,
+                }),
+                entryPoint: 'main',
+                targets: [
+                    {
+                        format: presentationFormat,
+                    },
+                ],
+                constants: {
+                    canvasSizeWidth: this.canvas.width,
+                    canvasSizeHeight: this.canvas.height,
+                },
+
+            },
+            depthStencil: {
+                depthWriteEnabled: true,
+                depthCompare: 'equal',
+                format: 'depth32float',
+            },
+            primitive,
+        });
+        console.log(this.canvas.width, this.canvas.height, 'canvas')
+        const gBufferTexturesBindGroup = device.createBindGroup({
+            layout: gBufferTexturesBindGroupLayout,
+            entries: [
+                {
+                    binding: 0,
+                    resource: this.gBufferPaper.colors[0],
+                },
+                {
+                    binding: 1,
+                    resource: this.gBufferPaper.colors[1],
+                },
+                {
+                    binding: 2,
+                    resource: this.gBufferPaper.colors[2],
+                },
+            ],
+        });
+        const commandEncoder = device.createCommandEncoder();
+        const textureQuadPassDescriptor: GPURenderPassDescriptor = {
+            colorAttachments: [
+                {
+                    // view is acquired and set in render loop.
+                    view: undefined,
+
+                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                    loadOp: 'clear',
+                    storeOp: 'store',
+                },
+            ],
+
+            // test depth output
+            depthStencilAttachment: {
+                view: materialDepthView,
+                depthClearValue: 1,
+                depthLoadOp: 'load',
+                depthStoreOp: 'store',
+            }
+        };
+        textureQuadPassDescriptor.colorAttachments[0].view = this.context
+            .getCurrentTexture()
+            .createView();
+        const debugViewPass = commandEncoder.beginRenderPass(
+            textureQuadPassDescriptor
+        );
+        debugViewPass.setPipeline(gBuffersDebugViewPipeline);
+        debugViewPass.setBindGroup(0, gBufferTexturesBindGroup);
+        debugViewPass.draw(6);
+        debugViewPass.setPipeline(gBuffersDebugViewPipelineR);
+        debugViewPass.setBindGroup(0, gBufferTexturesBindGroup);
+        debugViewPass.draw(6);
+        debugViewPass.end();
+        device.queue.submit([commandEncoder.finish()]);
+    }
+    debug2() {
         const materialDepthView = this.writeMaterialIDToDepth();
 
         const primitive: GPUPrimitiveState = {
@@ -408,7 +762,7 @@ export class SimpleArtist extends Artist {
                             // actually it is the material id
                             output.depth = depth;
                         // }
-                        //output.depth = 150.0/2345678.0;
+                        //output.depth = 150.0 / 8888888.0;
                         if(c.y  < c.x)
                         {
                             output.color = textureLoad(
@@ -497,5 +851,9 @@ export class SimpleArtist extends Artist {
         debugViewPass.draw(6);
         debugViewPass.end();
         device.queue.submit([commandEncoder.finish()]);
+    }
+
+    resize() {
+        this.canvas.width
     }
 }

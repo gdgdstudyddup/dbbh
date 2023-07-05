@@ -24,7 +24,7 @@ const mesh0 = new DBBH.Mesh(geometry, material0);
 }
 
 const material1 = new DBBH.Material();
-material1.id = 1/1;
+material1.id = 2/1;
 const geometry1 = new DBBH.Geometry();
 const mesh1 = new DBBH.Mesh(geometry1, material1);
 {
