@@ -323,14 +323,14 @@ export class SimpleArtist extends Artist {
         return materialDepthView;
     }
 
-    async generateIDTable() {
+    generateIDTable() {
         // for example, canvas w = 9 h = 9, then size should be 2 * 2  2
         const device = this.device;
         const idRange = new Uint32Array(Math.ceil(this.canvas.width / 8) * 2 * Math.ceil(this.canvas.height / 8));
         for (let i = 0; i < idRange.length; i += 2) {
             idRange[i] = 9999999;
         }
-        console.log('idRange',idRange)
+        console.log('idRange', idRange)
         let buffer = device.createBuffer({
             size: idRange.byteLength,
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
@@ -386,11 +386,11 @@ export class SimpleArtist extends Artist {
             ]
         })
 
-        const resultBuffer = device.createBuffer({
-            label: 'result buffer',
-            size: idRange.byteLength,
-            usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-        });
+        // const resultBuffer = device.createBuffer({
+        //     label: 'result buffer',
+        //     size: idRange.byteLength,
+        //     usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+        // });
         // begin
         const encoder = device.createCommandEncoder({
             label: 'generate id encoder',
@@ -404,21 +404,273 @@ export class SimpleArtist extends Artist {
         pass.dispatchWorkgroups(Math.ceil(this.canvas.width / 8), Math.ceil(this.canvas.height / 8));
         pass.end();
 
-        encoder.copyBufferToBuffer(buffer, 0, resultBuffer, 0, resultBuffer.size);
+        // encoder.copyBufferToBuffer(buffer, 0, resultBuffer, 0, resultBuffer.size);
         const commandBuffer = encoder.finish();
         device.queue.submit([commandBuffer]);
 
-        await resultBuffer.mapAsync(GPUMapMode.READ);
-        const result = new Uint32Array(resultBuffer.getMappedRange().slice(0));
-        resultBuffer.unmap();
-        console.log('idmap', result); // 16 0
-        for (let i = 0; i < result.length; i++) {
-            if (result[i] !== 0 && result[i] != 9999999) console.log(result[i])
-        }
+        // await resultBuffer.mapAsync(GPUMapMode.READ);
+        // const result = new Uint32Array(resultBuffer.getMappedRange().slice(0));
+        // resultBuffer.unmap();
+        // console.log('idmap', result); // 16 0
+        // for (let i = 0; i < result.length; i++) {
+        //     if (result[i] !== 0 && result[i] != 9999999) console.log(result[i])
+        // }
 
         return buffer;
     }
+    getMaterials() {
+        return [2];
+    }
+    generateTile() {
+        const device = this.device;
+        const idTable = this.generateIDTable();
+        const materialDepthView = this.writeMaterialIDToDepth();
+        const materials = this.getMaterials();
+        const tilesPerRow = Math.ceil(window.innerWidth / 8);
+        const countOfTile = Math.ceil(window.innerWidth / 8) * Math.ceil(window.innerHeight / 8);
+        const offsetX = 8.0 / window.innerWidth;
+        const offsetY = 8.0 / window.innerHeight;
+        let needCheckPipeline = true;
+
+        const primitive: GPUPrimitiveState = {
+            topology: 'triangle-list',
+            cullMode: 'back',
+        };
+        const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+        const vertexLayout = device.createBindGroupLayout({
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage' }
+                },
+            ]
+        });
+        const gBufferTexturesBindGroupLayout = device.createBindGroupLayout({
+            entries: [
+                {
+                    binding: 0,
+                    visibility: GPUShaderStage.FRAGMENT | GPUShaderStage.VERTEX,
+                    texture: {
+                        sampleType: 'unfilterable-float',
+                    },
+                },
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    texture: {
+                        sampleType: 'unfilterable-float',
+                    },
+                },
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.FRAGMENT,
+                    texture: {
+                        sampleType: 'unfilterable-float',
+                    },
+                },
+            ],
+        });
+        const gBuffersDebugViewPipeline = device.createRenderPipeline({
+            layout: device.createPipelineLayout({
+                bindGroupLayouts: [
+                    gBufferTexturesBindGroupLayout,
+                    vertexLayout
+                ],
+            }),
+            vertex: {
+                module: device.createShaderModule({
+                    code: `
+                    @group(0) @binding(0) var gBufferPosition: texture_2d<f32>;
+                    @group(1) @binding(0) var<storage, read> data: array<u32>;
+                    override tileWidth: f32;
+                    override tileHeight: f32;
+                    override tilesPerRow: u32;
+                    override canvasWidth: f32;
+                    override canvasHeight: f32;
+                    struct VertexOutput {
+                        @builtin(position) Position : vec4<f32>,
+                        @location(0) test: vec3<f32>,
+                    };
+                    @vertex
+                    fn main(
+                        @builtin(vertex_index) VertexIndex : u32,
+                        @builtin(instance_index) instanceIdx : u32,
+                    ) -> VertexOutput {
+                        
+                      let y = (instanceIdx) / tilesPerRow;
+                      let x = instanceIdx - y * tilesPerRow;
+                      let x0: f32 = (f32(x) * tileWidth) * 2.0 -1.0;
+                      let x1: f32 = (f32(x + 1) * tileWidth) * 2.0 -1.0;
+                      let y0: f32 = (f32(y) * tileHeight) * 2.0 -1.0;
+                      let y1: f32 = (f32(y + 1) * tileHeight) * 2.0 -1.0;
+                      let pos = array(
+                        // vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0),
+                        // vec2(-1.0, 1.0), vec2(1.0, -1.0), vec2(1.0, 1.0),
+                        // vec2(0.0, 0.0), vec2(tileWidth, 0.0), vec2(0.0, tileHeight),
+                        // vec2(0.0, tileHeight), vec2(tileWidth, 0.0), vec2(tileWidth, tileHeight),
+                        vec2(x0, y0), vec2(x1, y0), vec2(x0, y1),
+                        vec2(x0, y1), vec2(x1, y0), vec2(x1, y1),
+                      );
+              
+                      let min_index = y * tilesPerRow * 2 + x * 2;
+                      let max_index = min_index + 1;
+                      let mMin = data[min_index];
+                      let mMax = data[max_index];
+                      // x * offsetX, (x + 1) * offsetX, y * offsetY, (y + 1) * offsetY
+                      var coord = (pos[VertexIndex] *0.5 + 0.5) * vec2(canvasWidth, canvasHeight);
+                      let materialID = u32(textureLoad( gBufferPosition, vec2<i32>(floor(coord)), 0 ).a);
+                      var output : VertexOutput;
+                      output.Position = vec4<f32>(pos[VertexIndex], 0.0, 1.0);
+                      output.test = vec3<f32>(pos[VertexIndex], 0.0);
+                    //   if(materialID < mMin || materialID > mMax)
+                      if(materialID >2)
+                      {
+                        output.Position = vec4<f32>(2.0, 2.0, 0.0, 1.0);
+                        // return output;
+                      }
+                      return output;
+                    }`,
+                }),
+                entryPoint: 'main',
+                constants: {
+                    tilesPerRow,
+                    tileWidth: offsetX,
+                    tileHeight: offsetY,
+                    canvasWidth: this.canvas.width,
+                    canvasHeight: this.canvas.height
+                },
+            },
+            fragment: {
+                module: device.createShaderModule({
+                    code: `
+                    @group(0) @binding(0) var gBufferPosition: texture_2d<f32>;
+                    @group(0) @binding(1) var gBufferNormal: texture_2d<f32>;
+                    @group(0) @binding(2) var gBufferAlbedo: texture_2d<f32>;
+                    
+                    struct FragmentOutput {
+                        @builtin(frag_depth) depth: f32,
+                        @location(0) color : vec4<f32>
+                    }
+                    @fragment
+                    fn main(
+                        @builtin(position) coord : vec4<f32>,
+                        @location(0) test: vec3<f32>,
+                    ) -> FragmentOutput {
+                        var result : vec4<f32>;
+                        var output: FragmentOutput;
+                        let depth = textureLoad(
+                            gBufferPosition,
+                        vec2<i32>(floor(coord.xy)),
+                        0
+                        ).a;
+                        
+                        // output.depth = 150.0 / 8888888.0;
+                        output.depth = textureLoad( gBufferPosition, vec2<i32>(floor(coord.xy)), 0 ).a / 8888888.0;
+                        // output.color = textureLoad(
+                        //     gBufferNormal,
+                        //     vec2<i32>(floor(coord.xy)),
+                        //     0
+                        //     );
+                        output.color = vec4(textureLoad( gBufferPosition, vec2<i32>(floor(coord.xy)), 0 ).a/20.0);
+                        output.color = vec4(test * 0.5 + 0.5, 1.0);
+                        return output;
+                    }
+                    `,
+                }),
+                entryPoint: 'main',
+                targets: [
+                    {
+                        format: presentationFormat,
+                    },
+                ],
+
+            },
+            depthStencil: {
+                depthWriteEnabled: true,
+                depthCompare: 'equal',
+                format: 'depth32float',
+            },
+            primitive,
+        });
+        const textureQuadPassDescriptor: GPURenderPassDescriptor = {
+            colorAttachments: [
+                {
+                    // view is acquired and set in render loop.
+                    view: undefined,
+
+                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                    loadOp: 'clear',
+                    storeOp: 'store',
+                },
+            ],
+
+            // test depth output
+            depthStencilAttachment: {
+                view: materialDepthView,
+                depthClearValue: 1,
+                depthLoadOp: 'load',
+                depthStoreOp: 'store',
+            }
+        };
+        const commandEncoder = device.createCommandEncoder();
+        textureQuadPassDescriptor.colorAttachments[0].view = this.context
+            .getCurrentTexture()
+            .createView();
+        const debugViewPass = commandEncoder.beginRenderPass(
+            textureQuadPassDescriptor
+        );
+        const vertexBindGroup = device.createBindGroup({
+            layout: vertexLayout,
+            entries: [
+                {
+                    binding: 0,
+                    resource: {
+                        buffer: idTable,
+                    },
+                },]
+        })
+        const gBufferTexturesBindGroup = device.createBindGroup({
+            layout: gBufferTexturesBindGroupLayout,
+            entries: [
+                {
+                    binding: 0,
+                    resource: this.gBufferPaper.colors[0],
+                },
+                {
+                    binding: 1,
+                    resource: this.gBufferPaper.colors[1],
+                },
+                {
+                    binding: 2,
+                    resource: this.gBufferPaper.colors[2],
+                },
+            ],
+        });
+        for (let i = 0; i < materials.length; i++) {
+            if (needCheckPipeline) {
+                debugViewPass.setPipeline(gBuffersDebugViewPipeline);
+            }
+            debugViewPass.setBindGroup(0, gBufferTexturesBindGroup);
+            debugViewPass.setBindGroup(1, vertexBindGroup);
+            debugViewPass.draw(6, countOfTile);
+        }
+        debugViewPass.end();
+        device.queue.submit([commandEncoder.finish()]);
+        // // if innerWidth == 0  tilesInOneRow = 0
+        // const tilesInOneRow = u32(window.innerWidth / 8) + 1;
+        // const y = (instanceID) / tilesInOneRow;
+        // const x = instanceID - y * tilesInOneRow;
+
+        // min_index = y * tilesInOneRow * 2 + x * 2;
+        // max_index = min_index + 1;
+
+        // // A B C D 
+        // x * offsetX, (x + 1) * offsetX, y * offsetY, (y + 1) * offsetY
+    }
     debug() {
+        this.generateTile();
+        return;
         const materialDepthView = this.writeMaterialIDToDepth();
         const idTable = this.generateIDTable();
 
