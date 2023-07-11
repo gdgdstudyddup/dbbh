@@ -344,7 +344,7 @@ export class SimpleArtist extends Artist {
             };
             @group(0) @binding(0) var<storage, read_write> data: array<A>;
             @group(0) @binding(1) var tID : texture_2d<f32>;
-            override canvasSizeWidth: u32;
+            override rowWidth: u32;
 
             @compute @workgroup_size(8, 8) fn computeSomething(
                 @builtin(global_invocation_id) id: vec3<u32>
@@ -354,11 +354,6 @@ export class SimpleArtist extends Artist {
                 let mID = u32(textureLoad(tID, uv, 0).a);
 
                 let global_index = uv / 8;
-                var rowWidth:u32 = 0;
-                if( canvasSizeWidth > 0 )
-                {
-                    rowWidth = (canvasSizeWidth / 8 + 1) * 2;
-                }
                 let min_index = global_index.y * rowWidth + global_index.x * 2;
                 let max_index = min_index + 1;
                 atomicMin(&data[min_index].a, mID);
@@ -374,7 +369,7 @@ export class SimpleArtist extends Artist {
                 module,
                 entryPoint: 'computeSomething',
                 constants: {
-                    canvasSizeWidth: this.canvas.width,
+                    rowWidth: Math.ceil(this.canvas.width / 8) * 2
                 }
             },
         });
@@ -426,10 +421,11 @@ export class SimpleArtist extends Artist {
         const idTable = this.generateIDTable();
         const materialDepthView = this.writeMaterialIDToDepth();
         const materials = this.getMaterials();
-        const tilesPerRow = Math.ceil(window.innerWidth / 8);
-        const countOfTile = Math.ceil(window.innerWidth / 8) * Math.ceil(window.innerHeight / 8);
-        const offsetX = 8.0 / window.innerWidth;
-        const offsetY = 8.0 / window.innerHeight;
+        const tilesPerRow = Math.ceil(this.canvas.width / 8);
+        const tilesPerCol = Math.ceil(this.canvas.height / 8);
+        const countOfTile = tilesPerRow * tilesPerCol;
+        const offsetX = 8.0 / this.canvas.width;
+        const offsetY = 8.0 / this.canvas.height;
         let needCheckPipeline = true;
 
         const primitive: GPUPrimitiveState = {
@@ -469,6 +465,11 @@ export class SimpleArtist extends Artist {
                         sampleType: 'unfilterable-float',
                     },
                 },
+                {
+                    binding: 3,
+                    visibility: GPUShaderStage.VERTEX,
+                    buffer: { type: 'read-only-storage' }
+                },
             ],
         });
         const gBuffersDebugViewPipeline = device.createRenderPipeline({
@@ -482,10 +483,12 @@ export class SimpleArtist extends Artist {
                 module: device.createShaderModule({
                     code: `
                     @group(0) @binding(0) var gBufferPosition: texture_2d<f32>;
+                    @group(0) @binding(3) var<storage, read> materialID: u32;
                     @group(1) @binding(0) var<storage, read> data: array<u32>;
                     override tileWidth: f32;
                     override tileHeight: f32;
                     override tilesPerRow: u32;
+                    override tilesPerCol: u32;
                     override canvasWidth: f32;
                     override canvasHeight: f32;
                     struct VertexOutput {
@@ -500,6 +503,7 @@ export class SimpleArtist extends Artist {
                         
                       let y = (instanceIdx) / tilesPerRow;
                       let x = instanceIdx - y * tilesPerRow;
+                    //   y=;
                       let x0: f32 = (f32(x) * tileWidth) * 2.0 -1.0;
                       let x1: f32 = (f32(x + 1) * tileWidth) * 2.0 -1.0;
                       let y0: f32 = (f32(y) * tileHeight) * 2.0 -1.0;
@@ -513,21 +517,22 @@ export class SimpleArtist extends Artist {
                         vec2(x0, y1), vec2(x1, y0), vec2(x1, y1),
                       );
               
-                      let min_index = y * tilesPerRow * 2 + x * 2;
+                      let min_index = (tilesPerCol - y - 2) * (tilesPerRow) * 2 + x * 2; // flipY
                       let max_index = min_index + 1;
                       let mMin = data[min_index];
                       let mMax = data[max_index];
                       // x * offsetX, (x + 1) * offsetX, y * offsetY, (y + 1) * offsetY
-                      var coord = (pos[VertexIndex] *0.5 + 0.5) * vec2(canvasWidth, canvasHeight);
-                      let materialID = u32(textureLoad( gBufferPosition, vec2<i32>(floor(coord)), 0 ).a);
+                      var coord = (pos[VertexIndex] *0.5 + 0.5);
+                      coord.y=1.0-coord.y;
+                      coord = coord * vec2(canvasWidth, canvasHeight);
+                    //   let materialID = u32(textureLoad( gBufferPosition, vec2<i32>(floor(coord)), 0 ).a);
                       var output : VertexOutput;
                       output.Position = vec4<f32>(pos[VertexIndex], 0.0, 1.0);
-                      output.test = vec3<f32>(pos[VertexIndex], 0.0);
-                    //   if(materialID < mMin || materialID > mMax)
-                      if(materialID >2)
+                      output.test = vec3<f32>(f32(materialID));
+                      if(materialID < mMin || materialID > mMax)
                       {
-                        output.Position = vec4<f32>(2.0, 2.0, 0.0, 1.0);
-                        // return output;
+                        output.Position = vec4<f32>(10000.0);
+                        return output;
                       }
                       return output;
                     }`,
@@ -535,6 +540,7 @@ export class SimpleArtist extends Artist {
                 entryPoint: 'main',
                 constants: {
                     tilesPerRow,
+                    tilesPerCol,
                     tileWidth: offsetX,
                     tileHeight: offsetY,
                     canvasWidth: this.canvas.width,
@@ -567,13 +573,13 @@ export class SimpleArtist extends Artist {
                         
                         // output.depth = 150.0 / 8888888.0;
                         output.depth = textureLoad( gBufferPosition, vec2<i32>(floor(coord.xy)), 0 ).a / 8888888.0;
-                        // output.color = textureLoad(
-                        //     gBufferNormal,
-                        //     vec2<i32>(floor(coord.xy)),
-                        //     0
-                        //     );
-                        output.color = vec4(textureLoad( gBufferPosition, vec2<i32>(floor(coord.xy)), 0 ).a/20.0);
-                        output.color = vec4(test * 0.5 + 0.5, 1.0);
+                        output.color = textureLoad(
+                            gBufferAlbedo,
+                            vec2<i32>(floor(coord.xy)),
+                            0
+                            );
+                        // output.color = vec4(textureLoad( gBufferPosition, vec2<i32>(floor(coord.xy)), 0 ).a/20.0);
+                        // output.color = vec4(test /20., 1.0);
                         return output;
                     }
                     `,
@@ -630,28 +636,47 @@ export class SimpleArtist extends Artist {
                     },
                 },]
         })
-        const gBufferTexturesBindGroup = device.createBindGroup({
-            layout: gBufferTexturesBindGroupLayout,
-            entries: [
-                {
-                    binding: 0,
-                    resource: this.gBufferPaper.colors[0],
-                },
-                {
-                    binding: 1,
-                    resource: this.gBufferPaper.colors[1],
-                },
-                {
-                    binding: 2,
-                    resource: this.gBufferPaper.colors[2],
-                },
-            ],
-        });
+        const bindGroups = [];
+        for (let i = 0; i < materials.length; i++) {
+            const id = new Uint32Array(1);
+            id[0] = materials[i];
+            const materialID = device.createBuffer({
+                label: 'count buffer',
+                size: id.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+            });
+            // Copy our input data to that buffer
+            device.queue.writeBuffer(materialID, 0, id);
+            const bindGroup = device.createBindGroup({
+                layout: gBufferTexturesBindGroupLayout,
+                entries: [
+                    {
+                        binding: 0,
+                        resource: this.gBufferPaper.colors[0],
+                    },
+                    {
+                        binding: 1,
+                        resource: this.gBufferPaper.colors[1],
+                    },
+                    {
+                        binding: 2,
+                        resource: this.gBufferPaper.colors[2],
+                    },
+                    {
+                        binding: 3,
+                        resource: { buffer: materialID }
+                    }
+                ],
+            });
+            bindGroups.push(bindGroup)
+        }
+
+        console.log('countOfTile', countOfTile, tilesPerCol)
         for (let i = 0; i < materials.length; i++) {
             if (needCheckPipeline) {
                 debugViewPass.setPipeline(gBuffersDebugViewPipeline);
             }
-            debugViewPass.setBindGroup(0, gBufferTexturesBindGroup);
+            debugViewPass.setBindGroup(0, bindGroups[i]);
             debugViewPass.setBindGroup(1, vertexBindGroup);
             debugViewPass.draw(6, countOfTile);
         }
