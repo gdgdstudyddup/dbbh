@@ -11,7 +11,7 @@ export function BoxGeometryInfo(width = 100, height = 100, depth = 100) {
     return generateInfo(geometry);
 }
 
-export function TorusKnotGeometryInfo(radius = 100, tube = 30, tubularSegments = 64, radialSegments = 8, p = 2, q = 3) {
+export function TorusKnotGeometryInfo(radius = 200, tube = 50, tubularSegments = 64, radialSegments = 8, p = 2, q = 3) {
     const geometry = new THREE.TorusKnotGeometry(radius, tube, tubularSegments, radialSegments, p, q);
     return generateInfo(geometry);
 }

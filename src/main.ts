@@ -13,7 +13,7 @@ material0.id = 50/1;
 const mesh0 = new DBBH.Mesh(geometry, material0);
 
 {
-    const { position, normal, uv, index } = SphereGeometryInfo(100);
+    const { position, normal, uv, index } = SphereGeometryInfo(200);
 
 
     mesh0.setVertices('position', 3, 'f32', position);
@@ -34,7 +34,7 @@ const mesh1 = new DBBH.Mesh(geometry1, material1);
     mesh1.setVertices('uv', 2, 'f32', uv);
     mesh1.setIndex(index);
     // mesh1.removeVertices('normal');
-    mesh1.position.set(-388, 0, 250);
+    mesh1.position.set(-900, 0, 500);
     // mesh1.quaternion.setFromAxisAngle(new Vector3(0,0,1), -0.7);
 }
 
@@ -43,13 +43,13 @@ material2.id = 150/1;
 const geometry2 = new DBBH.Geometry();
 const mesh2 = new DBBH.Mesh(geometry2, material2);
 {
-    const { position, normal, uv, index } = BoxGeometryInfo(150, 150, 150);
+    const { position, normal, uv, index } = BoxGeometryInfo(300, 300, 300);
     mesh2.setVertices('position', 3, 'f32', position);
     mesh2.setVertices('normal', 3, 'f32', normal);
     mesh2.setVertices('uv', 2, 'f32', uv);
     mesh2.setIndex(index);
     // mesh2.removeVertices('normal');
-    mesh2.position.set(388, 0, -200);
+    mesh2.position.set(1000, 0, -500);
     mesh2.quaternion.setFromAxisAngle(new Vector3(0,0,1), 3.14);
 }
 

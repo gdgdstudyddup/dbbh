@@ -326,6 +326,7 @@ export class SimpleArtist extends Artist {
     generateIDTable() {
         // for example, canvas w = 9 h = 9, then size should be 2 * 2  2
         const device = this.device;
+        const tilesPerCol = Math.ceil(this.canvas.height / 8);
         const idRange = new Uint32Array(Math.ceil(this.canvas.width / 8) * 2 * Math.ceil(this.canvas.height / 8));
         for (let i = 0; i < idRange.length; i += 2) {
             idRange[i] = 9999999;
@@ -345,6 +346,7 @@ export class SimpleArtist extends Artist {
             @group(0) @binding(0) var<storage, read_write> data: array<A>;
             @group(0) @binding(1) var tID : texture_2d<f32>;
             override rowWidth: u32;
+            override tilesPerCol: u32;
 
             @compute @workgroup_size(8, 8) fn computeSomething(
                 @builtin(global_invocation_id) id: vec3<u32>
@@ -354,7 +356,7 @@ export class SimpleArtist extends Artist {
                 let mID = u32(textureLoad(tID, uv, 0).a);
 
                 let global_index = uv / 8;
-                let min_index = global_index.y * rowWidth + global_index.x * 2;
+                let min_index = (tilesPerCol - global_index.y - 1) * (rowWidth)  + global_index.x * 2;
                 let max_index = min_index + 1;
                 atomicMin(&data[min_index].a, mID);
                 atomicMax(&data[max_index].a, mID);
@@ -369,7 +371,8 @@ export class SimpleArtist extends Artist {
                 module,
                 entryPoint: 'computeSomething',
                 constants: {
-                    rowWidth: Math.ceil(this.canvas.width / 8) * 2
+                    rowWidth: (Math.ceil(this.canvas.width / 8) ) * 2,
+                    tilesPerCol
                 }
             },
         });
@@ -414,7 +417,7 @@ export class SimpleArtist extends Artist {
         return buffer;
     }
     getMaterials() {
-        return [2];
+        return [2, 150, 50];
     }
     generateTile() {
         const device = this.device;
@@ -488,9 +491,8 @@ export class SimpleArtist extends Artist {
                     override tileWidth: f32;
                     override tileHeight: f32;
                     override tilesPerRow: u32;
-                    override tilesPerCol: u32;
-                    override canvasWidth: f32;
-                    override canvasHeight: f32;
+                    // override canvasWidth: f32;
+                    // override canvasHeight: f32;
                     struct VertexOutput {
                         @builtin(position) Position : vec4<f32>,
                         @location(0) test: vec3<f32>,
@@ -501,7 +503,7 @@ export class SimpleArtist extends Artist {
                         @builtin(instance_index) instanceIdx : u32,
                     ) -> VertexOutput {
                         
-                      let y = (instanceIdx) / tilesPerRow;
+                      let y = (instanceIdx) / (tilesPerRow);
                       let x = instanceIdx - y * tilesPerRow;
                     //   y=;
                       let x0: f32 = (f32(x) * tileWidth) * 2.0 -1.0;
@@ -509,42 +511,32 @@ export class SimpleArtist extends Artist {
                       let y0: f32 = (f32(y) * tileHeight) * 2.0 -1.0;
                       let y1: f32 = (f32(y + 1) * tileHeight) * 2.0 -1.0;
                       let pos = array(
-                        // vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0),
-                        // vec2(-1.0, 1.0), vec2(1.0, -1.0), vec2(1.0, 1.0),
-                        // vec2(0.0, 0.0), vec2(tileWidth, 0.0), vec2(0.0, tileHeight),
-                        // vec2(0.0, tileHeight), vec2(tileWidth, 0.0), vec2(tileWidth, tileHeight),
                         vec2(x0, y0), vec2(x1, y0), vec2(x0, y1),
                         vec2(x0, y1), vec2(x1, y0), vec2(x1, y1),
                       );
               
-                      let min_index = (tilesPerCol - y - 2) * (tilesPerRow) * 2 + x * 2; // flipY
+                      let min_index = (y + 1) * (tilesPerRow) * 2 + x * 2; // I have no idea why we need to add 1, but it seems correct.
                       let max_index = min_index + 1;
                       let mMin = data[min_index];
                       let mMax = data[max_index];
-                      // x * offsetX, (x + 1) * offsetX, y * offsetY, (y + 1) * offsetY
-                      var coord = (pos[VertexIndex] *0.5 + 0.5);
-                      coord.y=1.0-coord.y;
-                      coord = coord * vec2(canvasWidth, canvasHeight);
-                    //   let materialID = u32(textureLoad( gBufferPosition, vec2<i32>(floor(coord)), 0 ).a);
                       var output : VertexOutput;
                       output.Position = vec4<f32>(pos[VertexIndex], 0.0, 1.0);
-                      output.test = vec3<f32>(f32(materialID));
                       if(materialID < mMin || materialID > mMax)
                       {
-                        output.Position = vec4<f32>(10000.0);
+                        output.Position = vec4<f32>(100000.0);
                         return output;
                       }
+                    //   output.test = vec3<f32>(f32(materialID));
                       return output;
                     }`,
                 }),
                 entryPoint: 'main',
                 constants: {
                     tilesPerRow,
-                    tilesPerCol,
                     tileWidth: offsetX,
                     tileHeight: offsetY,
-                    canvasWidth: this.canvas.width,
-                    canvasHeight: this.canvas.height
+                    // canvasWidth: this.canvas.width,
+                    // canvasHeight: this.canvas.height
                 },
             },
             fragment: {
